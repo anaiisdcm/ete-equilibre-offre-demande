@@ -4,23 +4,99 @@
 ## Données d'entrées, hypothèses
 
 ### Fenêtre d'optimisation
-$T$ : nombre d'heures constituant la fenêtre d'optimisation
+$T$ (entier positif) : Durée de la fenêtre d'optimisation (en h)
+
+
+### Familles d'actifs
+$elec_{in}$ : Actif consommant de l'électricité
+
+$elec_{out}$ : Actif produisant de l'électricité
+
+$gaz_{in}$ : Actif consommant du gaz
+
+$gaz_{out}$ : Actif produisant du gaz
+
+<!-- $heat_{in}$ : Actif consommant de la chaleur -->
+
+<!-- $heat_{out}$ : Actif produisant de la chaleur -->
+
+
+$nuc \in elec_{out}$ : Actif nucléaire
+
+$ge \in gaz_{in} \cap elec_{out}$ : Actif convertisseur de gaz en électricité
+
+$coal \in elec_{out}$ : Actif convertisseur de charbon en électricité
+
+$fioul \in elec_{out}$ : Actif convertisseur de fioul en électricité
+
+<!-- $gh \in gaz_{in} \cap heat_{out}$ : Actif convertisseur de gaz en chaleur -->
+
+$inter \in elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse)
+
+$PV \in inter$ : Actif de production photovoltaïque
+
+$windon \in inter$ : Actif de production électrique éolienne terrestre
+
+$windoff \in inter$ : Actif de production électrique éolienne en mer
+
+$hydroFO \in inter$ : Actif de production hydroélectrique (fil de l'eau)
+
+$waste \in inter$ : Actif de production électrique issue de la valorisation des déchets
+
+$biomass \in inter$ : Actif de production électrique issue de la biomasse
+
+$biogas \in gas_{out}$ : Actif de production de gaz issu de la biomasse
+
+$hydroLac \in elec_{out}$ : Actif de production hydroélectrique pilotable avec stockage sans maitrise de la charge
+
+$step \in elec_{in} \cap elec_{out}$ : Actif de conversion hydroélectrique avec stockage (pompage et turbinage)
+
+$import_{elec} \in elec_{in}$ : Imports d'électricité sur le réseau
+
+$export_{elec} \in elec_{out}$ : Exports d'électricité du réseau
+
+$import_{gas} \in gas_{in}$ : Imports de gaz sur le réseau
+
+$export_{gas} \in gas_{out}$ : Exports de gaz du réseau
 
 ### Capacités installées
-$P_{max}$
-$P_{min}$
+$P_{out_{max}}$ : Puissance maximale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
 
-### Productions fatales
+$P_{out_{min}}$ : Puissance minimale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
+
+$P_{in_{max}}$ : Puissance maximale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
+
+$P_{in_{min}}$ : Puissance minimale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
+
+### Capacités de stockage
+$E_{max_{hydroLac, step}}$ : Energie maximale stockée par l'actif $hydroLac, step$
+
+$E_{min_{hydroLac, step}}$ : Energie minimale stockée par l'actif $hydroLac, step$ <!-- Probablement =0 au début -->
+
+
+### Durée minimale de fonctionnement et d'arrêt
+$d_{min_{nuc, ge, gh, coal, fioul, inter, biogas, hydroLac, step}}$ : Durée minimale de fonctionnement et d'arrêt (en h) <!--  A priori pas besoin pour les EnR donc éventuellement ajouter d_min_inter = 0 -->
+
+### Prévisions
 Attention respect des facteurs de charge moyens
 #### Productions fatales d'électricité
-$P_{photovoltaïque}$
-$P_{éolien ter}$
-$P_{éolien mer}$
-$P_{hydro fil}$
-$P_{valorisation déchets}$
-$P_{biomasse}$
+$P_{forecast_{PV, t}}, t\in [1;T]$ : Production électrique photovoltaïque prévue au pas de temps $t$ pour l'actif $PV$ (en kW)
+
+$P_{forecast_{windon, t}}, t\in [1;T]$ : Production électrique éolienne terrestre prévue au pas de temps $t$ pour l'actif $windon$ (en kW)
+
+$P_{forecast_{windoff, t}}, t\in [1;T]$ : Production électrique éolienne en mer prévue au pas de temps $t$ pour l'actif $windoff$ (en kW)
+
+$P_{forecast_{hydroFO, t}}, t\in [1;T]$ : Production électrique hydraulique (fil de l'eau) prévue au pas de temps $t$ pour l'actif $hydroFO$ (en kW)
+
+$P_{forecast_{waste, t}}, t\in [1;T]$ : Production électrique issue de la valorisation des déchets prévue au pas de temps $t$ pour l'actif $waste$ (en kW)
+
+$P_{forecast_{biomass, t}}, t\in [1;T]$ : Production électrique issue de la biomasse prévue au pas de temps $t$ pour l'actif $biomass$ (en kW)
+
 #### Productions fatales de gaz
-$P_{biogaz}$
+$P_{forecast_{biogas, t}}, t\in [1;T]$ : Production de gaz issue de la biomasse prévue au pas de temps $t$ pour l'actif $biogas$ (en kW)
+
+#### Précipitations pour l'hydraulique lac
+$P_{rain_{hydroLac}, t}, t\in [1;T]$ : Puissance turbinable récupérée au pas de temps $t$ pour l'actif $hydroLac$ (en kW > 0)
 
 ### Besoins à satisfaire
 #### Consommation directe électrique
@@ -28,16 +104,32 @@ $P_{biogaz}$
 
 
 ### Prix de l'énergie des différents actifs de production
+$Cost_{elec_{out} \setminus{\lbrace hydroLac \cup step \rbrace}}$ : Coût de l'électricité produite par l'actif $elec_{out}$ (en €/kWh)
+
+$Cost_{gas_{out}}$ : Coût du gas produit par l'actif $gas_{out}$ (en €/kWh)
+
+$Cost_{export_{gas}\cup export_{elec}}$ : Coût (revenu ici) de la vente du gaz et de l'électricité exportée du réseau (en €/kWh)
+
 #### Prix hydraulique
 Attention respect variations précipitations
 
+$Cost_{hydroLac \cup step, t}, t\in [1;T]$ :$ : Coût de l'électricité produite par l'actif $hydroLac$ au pas de temps $t$ (en €/kWh)
+
 ### Disponibilité des actifs
 Imports GNL par bateau modélisés sous forme de disponibilité != 0
-P
+
+$Disp_{elec_{out}\cup gas_{out} \cup {import_{elec} \cup {import_{gas}}}, t}, t\in [1;T]$ : Disponibilité de l'actif (float, entre 0 et 1)
+
+
+### Rendements
+$Eff_{gaz->elec, ge}$ : Rendement de la conversion du gaz en électricité de l'actif $ge$ (float, entre 0 et 1)
+<!-- $eff_{gaz, heat, gh}$ : Rendement de la conversion du gaz en chaleur de l'actif $gh$ (float, entre 0 et 1) -->
+$Eff_{elec->elec, step}$ : Rendement du pompage et du turbinage de l'actif $step$ (float, entre 0 et 1)
 
 ## Variables
 ### Puissance de fonctionnement des actifs
 $P_{in}$
+
 $P_{out}$
 ### Flag de fonctionnement des actifs dispachable
 ### Flag de mise en focntionnement/d'arrêt des actifs dispachable
@@ -64,125 +156,6 @@ Rendement charge et rendement décharge
 
 
 
-
-
-
-
-
-Centrale nucléaire :
-Pmax
-Pmin
-dmin marche/arrêt
-prix
-Disponibilité
-
-CCG Gaz :
-Pmax elec
-Pmin elec
-dmin marche/arrêt
-prix
-rendement Pin gaz *rendement = Pout elec
-Disponibilité
-
-TAC Gaz :
-Pmax elec
-Pmin elec
-dmin marche/arrêt
-prix
-rendement Pin gaz *rendement = Pout elec
-Disponibilité
-
-Cogén piloté pour satisfaire besoin en chaleur :
-Pmax elec
-Pmin elec
-dmin marche/arrêt
-prix
-rendements elec : Pin gaz *rendement = Pout elec
-rendement chaleur (chaleur si on choisit de modéliser le besoin en chaleur)
-Disponibilité
-
-Centrale à charbon :
-Pmax
-Pmin
-dmin marche/arrêt
-prix
-Disponibilité
-
-Valorisation énergétique déchets:
-Prod fatale <= Capacité installée
-prix
-Disponibilité
-
-Petite biomasse:
-Prod fatale <= Capacité installée
-Attention à respecter le facteur de charge moyen (dans les données d’entrées)
-prix
-Disponibilité
-
-Fioul :
-Pmax
-Pmin
-dmin marche/arrêt
-prix
-Disponibilité
-
-
-Hydro fil de l’eau:
-Prod fatale (dans les données d’entrées)
-prix
-Disponibilité
-
-Hydro lac :
-Pmax = capacité installée
-Emax
-prix
-Décharge Pelec qui doit respecter l’énergie stockée dans le lac (min et max)
-Charge du lac = donnée de combien il pleut <= stockage max
-Disponibilité
-
-STEP : dispo multiple de 8
-Pmax
-Emax
-prix
-Décharge Pelec qui doit respecter l’énergie stockée dans le lac (min et max)
-Charge du lac <= stockage max
-rendement
-Disponibilité
-
-Parc éolien terrestre :
-Prod fatale <= Capacité installée
-Attention à respecter le facteur de charge moyen (dans les données d’entrées)
-prix
-Disponibilité
-
-Parc éolien en mer :
-Prod fatale <= Capacité installée
-Attention à respecter le facteur de charge moyen (dans les données d’entrées)
-prix
-Disponibilité
-
-
-Parc solaire :
-Prod fatale <= Capacité installée
-Attention à respecter le facteur de charge moyen (dans les données d’entrées)
-prix
-Disponibilité
-
-Import elec interconnexions:
-Pmax
-Disponibilité
-prix
-
-Export elec interconnexions:
-Pmax
-Disponibilité
-prix
-
-Contrainte import export : pas d’import et d’export en meme temps
-
-
-
-
 Imports GNL bateau :
 Pmax
 Pmax modulée par disponibilité : là on représente les arrivages de bateaux
@@ -195,12 +168,6 @@ prix
 
 Exports gaz interconnexions:
 Pmax
-Disponibilité
-prix
-
-Prod biogaz :
-Pmax
-Fatal : donnée d’entrée
 Disponibilité
 prix
 
