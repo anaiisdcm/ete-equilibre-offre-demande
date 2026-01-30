@@ -26,9 +26,8 @@ $pil_{elec_{out}} \in elec_{out} \notin gaz_{in}$ : Actif pilotable, produisant 
 
 $ge \in gaz_{in} \cap elec_{out}$ : Actif convertisseur de gaz en électricité (centrales CCG, TAC, cogénération)
 
-$inter \in elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse)
+$inter \in elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse et aussi hydroLac (modélisé comme fatal pour le moment))
 
-$hydroLac \in elec_{out}$ : Actif de production hydroélectrique pilotable avec stockage sans maitrise de la charge
 
 $stock \in elec_{out} \cup gaz_{out}$: Actif de stockage (hydraulique lac, STEP, stockage gaz, stockage H2)
 
@@ -38,13 +37,7 @@ $conv$ : Actif de conversion (gaz vers élec, stockages gaz et hydrogène, STEP)
 
 $prod_{gas} \in gas_{out}$ : Actif de production de gaz (méthanisation, pyrogazéification, H2)
 
-$import_{elec} \in elec_{out}$ : Imports d'électricité sur le réseau
-
-$export_{elec} \in elec_{in}$ : Exports d'électricité du réseau
-
 $import_{gas} \in gas_{out}$ : Imports de gaz sur le réseau
-
-$export_{gas} \in gas_{in}$ : Exports de gaz du réseau
 
 
 ### Capacités installées
@@ -94,10 +87,10 @@ $Cost_{gas_{out} \setminus{\lbrace gastank \rbrace}}$ : Coût du gaz produit par
 
 $Cost_{export_{gas}\cup export_{elec}}$ : Coût (revenu ici) de la vente du gaz et de l'électricité exportée du réseau (en €/kWh)
 
-#### Prix hydraulique
+<!-- #### Prix hydraulique
 Attention respect variations précipitations
 
-$Cost_{hydroLac \cup step, t}, t\in [1;T]$ :$ : Coût de l'électricité produite par l'actif $hydroLac$ ou $step$ au pas de temps $t$ (en €/kWh)
+$Cost_{hydroLac \cup step, t}, t\in [1;T]$ :$ : Coût de l'électricité produite par l'actif $hydroLac$ ou $step$ au pas de temps $t$ (en €/kWh) -->
 
 ### Disponibilité des actifs
 Imports GNL par bateau modélisés sous forme de disponibilité != 0
@@ -112,11 +105,7 @@ $Eff_{conv}$ :Rendement de la conversion d'énergie effectuée par l'actif $conv
 ### Puissance de fonctionnement des actifs
 $P_{in_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
 
-$P^J_{in_{asset, j}}, asset \in gas_{in}, j\in [1;J]$
-
 $P_{out_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
-
-$P^J_{out_{asset, j}}, asset \in gas_{in}, j\in [1;J]$
 
 ### Energie stockée par les actifs de stockage
 $E_{stock,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $stock$ à la fin du pas de temps $t$
@@ -124,8 +113,6 @@ $E_{stock,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'act
 ### Flag de fonctionnement des actifs dispachable
 
 $on_{disp,t} \in {\lbrace 0,1 \rbrace}$ , $disp \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $disp$ de production d'électricité est en fonctionnement au pas de temps $t$
-
-$on_{disp,j} \in {\lbrace 0,1 \rbrace} , asset \in gas_{out}, j\in [1;J]$ : L'actif $disp$ de production de gaz est en fonctionnement au pas de temps $j$
 
 ### Flag de mise en fonctionnement/d'arrêt des actifs dispachables
 
@@ -185,7 +172,7 @@ Si l'actif est on :
 $P_{out_{disp, t}} >= P_{out_{min}, disp} * on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out}), t\in [1;T]$
 
 ### Contraintes durée minimale de fonctionnement et d'arrêt
-Pour tous les actifs dispatachables $disp$ (nuc, ge, gh, coal, fioul, inter, biogas, hydroLac, step, import/export, gastank, h2tank ????):
+Pour tous les actifs dispatchables $disp$ (nuc, ge, gh, coal, fioul, inter, biogas, hydroLac, step, import/export, gastank, h2tank ????):
 
 Contrainte up_down_1 : 
 Attention initialisation
@@ -237,10 +224,8 @@ Contrainte charge_stock :
 
 
 Contrainte discharge_stock :
-/!\ marche que pour actifs qui fonctionnent en $t$ et pas en $j$
 
-$$P_{out_{s, t}}* duration_t <= E_{s,1}$$
-Pdecharge_STEP[Tmax] <= stock_STEP[Tmax]
+$$P_{out_{s, t}}* duration_t <= E_{s,t}$$
 
 Contrainte Pcharge_avail :
 Déjà fait avec P_max_in 
