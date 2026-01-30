@@ -1,25 +1,34 @@
-- Voir si on peut regrouper des familles d'actifs qui sont modélisables exactement pareil
-- Choisir convention débutante/finissante
-- Choisir découpage de l'optim :
-    1 semaine / 1mois
+- Découpage de l'optim : 1 semaine
     --> Comment on gère l'enchainement des optims et la préparation des inputs pour l'optim T+1 ?
         - Automatisé dans julia avec boucle for
-- h2tank == stockage elec random comme batterie mais avec rendements différents ? ou on modélise vraiment l'H2 en tant que gas qui peut être consommé directement h2_{in}/h2_{out}
-- Sous quelle forme on construit les inputs et les outputs ? -> fixer la forme de l'excel input avec feuilles par thématique de données d'entrée
-- Quelles sorties et sous quelle forme ?
-- Quel prix pour l'hydroLac ? Est-ce bien une donnée d'entrée 'pure' qui ne dépend pas du résultat de l'optim en cours ? (même si pourrait être influencée par les optims précédentes suivant le découpage choisi)
-- Faut-il rajouter variables de dépassement qui coutent très cher pour éviter optim insolubles ?
-- EOD gaz N/S horaire
-- EOD h2 N/S horaire
+        - Effets de bord : Anneau de garde (7jours +1 pour relancer on garde quand meme les données à la fin du 7ème jour)
+- Sous quelle forme on construit les inputs et les outputs ?
+    -> fixer la forme de l'excel input avec feuilles par thématique de données d'entrée
+    -> Quelles sorties et sous quelle forme ?
+- EOD gaz N/S horaire -> mettre tout en heures : hypothèse simplificatrice sur les données d'entrée /24
+- EOD h2 N/S horaire -> mettre tout en heures : hypothèse simplificatrice sur les données d'entrée/24
 - Ajouter famille h2
 - Ajouter famille N/S
+- Faut-il rajouter variables de dépassement qui coutent très cher pour éviter optim insolubles ?
 - Ajouter Emin/Emax avec variable dépassement qui coûte cher (en-dessous/au-dessus) pour gérer les écarts
 
 
-- Ordre modélisation :
-    - Actifs elec uniquement (sans stockage puis avec)
-    - Ajouter actifs gas simples (pas stockage)
-    - 
+Les devoirs (ouin ouin) :
+- Compléter la doc README avec famille H2, famille N/S et la fin des contraintes (stockage, EOD H2 N/S, EOD Gaz N/S)
+- Finir excel d'entrées (forme fixée)
+- Fixer la forme de l'excel de sortie
+- Coder le problème :
+    - Lecture des entrées de l'excel + Choix solveur
+    - Ajouter variables et contraintes pour l'élec uniquement sans stockage cf TP mais avec la bonne nomenclature -> tester optim juste elec avec valeurs simples
+    - Ajouter stockage elec + tester avec exemple simple
+    - Ajouter actifs gaz simple (pas stockage) + tester simple
+    - Boucle pour optimiser 52 semaines
+    - Ultérieurement : Ajouter stockage gaz + tester simple
+- Bien définir le scenario de référence + les variations de ce scenario
+- Executer les optims pour les scenarios définis
+- Analyser les scenarios
+
+
 
 - Excel définition scenarios :
     - Référence crédible
@@ -34,16 +43,14 @@ Idées pour les scenarios : jouer sur les réponses à ces questions
 - Quelles données d'entrée pour les précipitations pour l'hydroLac ?
 
 
-Zootopia on peut rajouter des actifs en plus pour le gaz, des exports externes international ?
+
+
+Pour info :
+
 Pinstallée charbon VS Pmax -> on prend les valeurs individuelles
-Prix de l'hydroLac : pas besoin de se lancer dedans
-- soit on bascule en fatal elles accepteront dans un premier temps
-- soit stock avec points de passage obligés mais quasi pareil que stockage gaz
 
 prix fatal -> pas besoin pour l'optim car ne coûte pas pour de vrai
 
--> mettre tout en heures : hypothèse simplificatrice /24
-EOD horaire aussi
-
-
-Effets de bord : Anneau de garde (7jours +1 pour relancer on garde quand meme les données à la fin du 7ème jour)
+Prix de l'hydroLac : pas besoin de se lancer dedans
+- soit on bascule en fatal elles accepteront dans un premier temps
+- soit stock avec points de passage obligés mais quasi pareil que stockage gaz

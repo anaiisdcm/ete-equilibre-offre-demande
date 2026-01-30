@@ -221,6 +221,8 @@ Pour les actifs $hydroLac$, la charge se fait avec les précipitations:
 
 
 Contrainte charge_stock :
+/!\ bords
+<!-- $$P_{in_{s, t}}* duration_t + E_{s,t-1} <= EmaxAvail a définir$$ -->
 
 
 Contrainte discharge_stock :
