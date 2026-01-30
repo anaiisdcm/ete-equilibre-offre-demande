@@ -1,0 +1,32 @@
+- GitHub is ok ?
+- Voir si on peut regrouper des familles d'actifs qui sont modélisables exactement pareil
+- Choisir convention débutante/finissante
+- Choisir découpage de l'optim :
+    1 semaine / 1mois
+    --> Comment on gère l'enchainement des optims et la préparation des inputs pour l'optim T+1 ?
+        - A la mano ?
+        - Automatisé ? et si oui comment (programme python qui manipule les excels et exécute le modèle d'optim julia ?)
+- h2tank == stockage elec random comme batterie mais avec rendements différents ? ou on modélise vraiment l'H2 en tant que gas qui peut être consommé directement h2_{in}/h2_{out}
+- Sous quelle forme on construit les inputs et les outputs ? -> fixer la forme de l'excel input avec feuilles par thématique de données d'entrée
+- Quelles sorties et sous quelle forme ?
+- Quel prix pour l'hydroLac ? Est-ce bien une donnée d'entrée 'pure' qui ne dépend pas du résultat de l'optim en cours ? (même si pourrait être influencée par les optims précédentes suivant le découpage choisi)
+- Imports GNL bateau : quels type de valeurs/temporalité
+- Faut-il rajouter variables de dépassement qui coutent très cher pour éviter optim insolubles ?
+
+
+- Ordre modélisation :
+    - Actifs elec uniquement (sans stockage puis avec)
+    - Ajouter actifs gas simples (pas stockage)
+    - 
+
+- Excel définition scenarios :
+    - Référence crédible
+    - QQ Variations autour de ce scenario de référence (en lien avec problématique)
+
+
+
+
+
+Idées pour les scenarios : jouer sur les réponses à ces questions
+- Quelles données d'entrées pour toutes les énergies fatales ?
+- Quelles données d'entrée pour les précipitations pour l'hydroLac ?
