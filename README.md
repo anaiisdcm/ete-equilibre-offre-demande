@@ -17,41 +17,25 @@ $elec_{out}$ : Actif produisant de l'électricité
 $gaz_{in}$ : Actif consommant du gaz
 
 $gaz_{out}$ : Actif produisant du gaz
-
 <!-- $heat_{in}$ : Actif consommant de la chaleur -->
 
 <!-- $heat_{out}$ : Actif produisant de la chaleur -->
 
+$pil_{elec_{out}} \in elec_{out} \notin gaz_{in}$ : Actif pilotable, produisant de l'électricité, mais ne consommant pas de gaz (nucléaire, charbon, fioul)
 
-$nuc \in elec_{out}$ : Actif nucléaire
-
-$ge \in gaz_{in} \cap elec_{out}$ : Actif convertisseur de gaz en électricité
-
-$coal \in elec_{out}$ : Actif convertisseur de charbon en électricité
-
-$fioul \in elec_{out}$ : Actif convertisseur de fioul en électricité
-
-<!-- $gh \in gaz_{in} \cap heat_{out}$ : Actif convertisseur de gaz en chaleur -->
+$ge \in gaz_{in} \cap elec_{out}$ : Actif convertisseur de gaz en électricité (centrales CCG, TAC, cogénération)
 
 $inter \in elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse)
 
-$PV \in inter$ : Actif de production photovoltaïque
-
-$windon \in inter$ : Actif de production électrique éolienne terrestre
-
-$windoff \in inter$ : Actif de production électrique éolienne en mer
-
-$hydroFO \in inter$ : Actif de production hydroélectrique (fil de l'eau)
-
-$waste \in inter$ : Actif de production électrique issue de la valorisation des déchets
-
-$biomass \in inter$ : Actif de production électrique issue de la biomasse
-
-$biogas \in gas_{out}$ : Actif de production de gaz issu de la biomasse
-
 $hydroLac \in elec_{out}$ : Actif de production hydroélectrique pilotable avec stockage sans maitrise de la charge
 
-$step \in elec_{in} \cap elec_{out}$ : Actif de conversion hydroélectrique avec stockage (pompage et turbinage)
+$stock \in elec_{out} \cup gaz_{out}$: Actif de stockage (hydraulique lac, STEP, stockage gaz, stockage H2)
+
+$conv$ : Actif de conversion (gaz vers élec, stockages gaz et hydrogène, STEP)
+
+<!-- $gh \in gaz_{in} \cap heat_{out}$ : Actif convertisseur de gaz en chaleur -->
+
+$prod_{gas} \in gas_{out}$ : Actif de production de gaz (méthanisation, pyrogazéification, H2)
 
 $import_{elec} \in elec_{out}$ : Imports d'électricité sur le réseau
 
@@ -61,45 +45,31 @@ $import_{gas} \in gas_{out}$ : Imports de gaz sur le réseau
 
 $export_{gas} \in gas_{in}$ : Exports de gaz du réseau
 
-$extraction_{gas} \in gas_{out}$ : Extraction de gaz = production de gaz
-
-$gastank \in gas_{in} \cap gas_{out}$ : Actif de stockage de gaz
-
-$h2tank \in elec_{in} \cap elec_{out}$ : Actif de stockage d'électricité exploitant l'électrolyse
-
 
 ### Capacités installées
-$P_{out_{max}, asset}$ : Puissance maximale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
+$P_{out_{max}, asset}$ : Puissance maximale produite par l'actif $elec_{out} \cup gaz_{out}$ <!-- \cap heat_{out} -->
 
-$P_{out_{min}, asset}$ : Puissance minimale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
+$P_{out_{min}, asset}$ : Puissance minimale produite par l'actif $elec_{out} \cup gaz_{out}$ <!-- \cap heat_{out} -->
 
-$P_{in_{max}, asset}$ : Puissance maximale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
+$P_{in_{max}, asset}$ : Puissance maximale consommée par l'actif $elec_{in} \cup gaz_{in}$  <!-- \cap heat_{in} -->
 
-$P_{in_{min}, asset}$ : Puissance minimale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
+$P_{in_{min}, asset}$ : Puissance minimale consommée par l'actif $elec_{in} \cup gaz_{in}$  <!-- \cap heat_{in} -->
 
 ### Capacités de stockage
-$E_{max_{hydroLac, step, gastank, h2tank}}$ : Energie maximale stockée par l'actif $hydroLac, step, gastank, h2tank$
+$E_{max_{stock}}$ : Energie maximale stockée par l'actif $ \in stock$
 
-$E_{min_{hydroLac, step, gastank, h2tank}}$ : Energie minimale stockée par l'actif $hydroLac, step, gastank, h2tank$ <!-- Probablement =0 au début -->
+$E_{min_{stock}}$ : Energie minimale stockée par l'actif $ \in stock$ <!-- Probablement =0 au début -->
 
 
 ### Durée minimale de fonctionnement et d'arrêt
-$d_{min_{nuc, ge, gh, coal, fioul, inter, biogas, hydroLac, step, import/export, gastank, h2tank}}$ : Durée minimale de fonctionnement et d'arrêt (en h) <!--  A priori pas besoin pour les EnR donc éventuellement ajouter d_min_inter = 0 -->
+$d_{min_{pil_{elec_{out}}, ge, gas_{out}}}$ : Durée minimale de fonctionnement et d'arrêt (en h) <!--  A priori pas besoin pour les EnR donc éventuellement ajouter d_min_inter = 0 -->
 
 ### Prévisions
-Attention respect des facteurs de charge moyens
+Attention respect des facteurs de charge moyens !
+
 #### Productions fatales d'électricité
-$P_{forecast_{PV, t}}, t\in [1;T]$ : Production électrique photovoltaïque prévue au pas de temps $t$ pour l'actif $PV$ (en kW)
 
-$P_{forecast_{windon, t}}, t\in [1;T]$ : Production électrique éolienne terrestre prévue au pas de temps $t$ pour l'actif $windon$ (en kW)
-
-$P_{forecast_{windoff, t}}, t\in [1;T]$ : Production électrique éolienne en mer prévue au pas de temps $t$ pour l'actif $windoff$ (en kW)
-
-$P_{forecast_{hydroFO, t}}, t\in [1;T]$ : Production électrique hydraulique (fil de l'eau) prévue au pas de temps $t$ pour l'actif $hydroFO$ (en kW)
-
-$P_{forecast_{waste, t}}, t\in [1;T]$ : Production électrique issue de la valorisation des déchets prévue au pas de temps $t$ pour l'actif $waste$ (en kW)
-
-$P_{forecast_{biomass, t}}, t\in [1;T]$ : Production électrique issue de la biomasse prévue au pas de temps $t$ pour l'actif $biomass$ (en kW)
+$P_{forecast_{inter, t}}, t\in [1;T]$ : Production électrique prévue au pas de temps $t$ pour l'actif $\in inter$ (en kW)
 
 #### Productions fatales de gaz
 $P_{forecast_{biogas, t}}, t\in [1;T]$ : Production de gaz issue de la biomasse prévue au pas de temps $t$ pour l'actif $biogas$ (en kW)
@@ -126,7 +96,7 @@ $Cost_{export_{gas}\cup export_{elec}}$ : Coût (revenu ici) de la vente du gaz 
 #### Prix hydraulique
 Attention respect variations précipitations
 
-$Cost_{hydroLac \cup step, t}, t\in [1;T]$ :$ : Coût de l'électricité produite par l'actif $hydroLac$ au pas de temps $t$ (en €/kWh)
+$Cost_{hydroLac \cup step, t}, t\in [1;T]$ :$ : Coût de l'électricité produite par l'actif $hydroLac$ ou $step$ au pas de temps $t$ (en €/kWh)
 
 ### Disponibilité des actifs
 Imports GNL par bateau modélisés sous forme de disponibilité != 0
@@ -141,21 +111,26 @@ $Eff_{conv}$ :Rendement de la conversion d'énergie effectuée par l'actif $conv
 ### Puissance de fonctionnement des actifs
 $P_{in_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
 
+$P^J_{in_{asset, j}}, asset \in gas_{in}, j\in [1;J]$
+
 $P_{out_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
+
+$P^J_{out_{asset, j}}, asset \in gas_{in}, j\in [1;J]$
 
 ### Energie stockée par les actifs de stockage
 $E_{stock,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $stock$ à la fin du pas de temps $t$
 
 ### Flag de fonctionnement des actifs dispachable
 
-$on_{disp,t} \in {\lbrace 0,1 \rbrace} , disp \in ???, t\in [1;T]$ : L'actif $asset$ est en fonctionnement au pas de temps $t$
+$on_{disp,t} \in {\lbrace 0,1 \rbrace}$ , $disp \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $disp$ de production d'électricité est en fonctionnement au pas de temps $t$
 
-### Flag de mise en fonctionnement/d'arrêt des actifs dispachable
+$on_{disp,j} \in {\lbrace 0,1 \rbrace} , asset \in gas_{out}, j\in [1;J]$ : L'actif $disp$ de production de gaz est en fonctionnement au pas de temps $j$
 
-$up_{disp,t} \in {\lbrace 0,1 \rbrace}, disp \in ???, t\in [1;T]$ : L'actif $asset$ démarre au pas de temps $t$
+### Flag de mise en fonctionnement/d'arrêt des actifs dispachables
 
-$down_{disp,t} \in {\lbrace 0,1 \rbrace}, disp \in ???, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
+$up_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $asset$ démarré au pas de temps $t$
 
+$down_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
 ### Puissance disponible des actifs
 $P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
 
