@@ -69,13 +69,13 @@ $h2tank \in elec_{in} \cap elec_{out}$ : Actif de stockage d'électricité explo
 
 
 ### Capacités installées
-$P_{out_{max}}$ : Puissance maximale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
+$P_{out_{max}, asset}$ : Puissance maximale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
 
-$P_{out_{min}}$ : Puissance minimale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
+$P_{out_{min}, asset}$ : Puissance minimale produite par l'actif $elec_{out} \cap gaz_{out}$ <!-- \cap heat_{out} -->
 
-$P_{in_{max}}$ : Puissance maximale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
+$P_{in_{max}, asset}$ : Puissance maximale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
 
-$P_{in_{min}}$ : Puissance minimale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
+$P_{in_{min}, asset}$ : Puissance minimale consommée par l'actif $elec_{in} \cap gaz_{in}$  <!-- \cap heat_{in} -->
 
 ### Capacités de stockage
 $E_{max_{hydroLac, step, gastank, h2tank}}$ : Energie maximale stockée par l'actif $hydroLac, step, gastank, h2tank$
@@ -135,15 +135,7 @@ $Disp_{elec_{out}\cup gas_{out} \cup elec_{in} \cup elec_{out}, t}, t\in [1;T]$ 
 
 
 ### Rendements
-Peut-être séparer en rendement in et rendement out
-
-$Eff_{gaz->elec, ge}$ : Rendement de la conversion du gaz en électricité de l'actif $ge$ (float, entre 0 et 1)
-<!-- $eff_{gaz, heat, gh}$ : Rendement de la conversion du gaz en chaleur de l'actif $gh$ (float, entre 0 et 1) -->
-$Eff_{elec->elec, step}$ : Rendement du pompage et du turbinage de l'actif $step$ (float, entre 0 et 1)
-
-$Eff_{elec->elec, h2tank}$ : Rendement de l'électrolyse (2 sens) de l'actif $h2tank$ (float, entre 0 et 1)
-
-$Eff_{gas->gas, gastank}$ : Rendement du stockage de l'actif $gastank$ (float, entre 0 et 1)
+$Eff_{conv}$ :Rendement de la conversion d'énergie effectuée par l'actif $conv$ (float, entre 0 et 1)
 
 ## Variables
 ### Puissance de fonctionnement des actifs
@@ -151,15 +143,23 @@ $P_{in_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
 
 $P_{out_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
 
+### Energie stockée par les actifs de stockage
+$E_{stock,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $stock$ à la fin du pas de temps $t$
+
 ### Flag de fonctionnement des actifs dispachable
 
-$on_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in ???, t\in [1;T]$ : L'actif $asset$ est en fonctionnement au pas de temps $t$
+$on_{disp,t} \in {\lbrace 0,1 \rbrace} , disp \in ???, t\in [1;T]$ : L'actif $asset$ est en fonctionnement au pas de temps $t$
 
 ### Flag de mise en fonctionnement/d'arrêt des actifs dispachable
 
-$up_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in ???, t\in [1;T]$ : L'actif $asset$ démarre au pas de temps $t$
+$up_{disp,t} \in {\lbrace 0,1 \rbrace}, disp \in ???, t\in [1;T]$ : L'actif $asset$ démarre au pas de temps $t$
 
-$down_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in ???, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
+$down_{disp,t} \in {\lbrace 0,1 \rbrace}, disp \in ???, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
+
+### Puissance disponible des actifs
+$P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
+
+$P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
 
 ## Fonction objectif
 A détailler :
@@ -179,18 +179,95 @@ Imports GNL bateau + Import interconnexion + Somme prod (bio)gaz + Décharge sto
 $$\displaystyle \forall t \in [1,T],\sum_{g_{in}\in gasc_{in}}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}}{P_{out_{g_{out},t}}}$$
 -> voir comment on gère la granularité de l'EOD (1h/1j ?)
 
-### Contraintes Pmax
-### Containtes Pmin
-### Contraintes durée minimale de fonctionnement et d'arrêt
 ### Contraintes de disponibilité
+Contrainte P_in_max_avail :
+$P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} * Disp_{asset, t}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
+
+Contrainte P_out_max_avail :
+$P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} * Disp_{asset, t}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
+
+### Contraintes Pmax
+Contrainte P_max_in :
+$P_{in_{asset, t}} <= P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
+
+Contrainte P_max_in_disp :
+$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} * on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in}), t\in [1;T]$
+
+Contrainte P_max_out :
+$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
+
+Contrainte P_max_out_disp :
+$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} * on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out}), t\in [1;T]$
+
+### Containtes Pmin
+Contrainte P_min_in :
+Si l'actif est on :
+$P_{in_{disp, t}} >= P_{in_{min}, disp} * on_{disp,t}, disp \in disp \cap(elec_{in} \cup gas_{in}), t\in [1;T]$
+
+Contrainte P_min_out :
+Si l'actif est on :
+$P_{out_{disp, t}} >= P_{out_{min}, disp} * on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out}), t\in [1;T]$
+
+### Contraintes durée minimale de fonctionnement et d'arrêt
+Pour tous les actifs dispatachables $disp$ (nuc, ge, gh, coal, fioul, inter, biogas, hydroLac, step, import/export, gastank, h2tank ????):
+
+Contrainte up_down_1 : 
+Attention initialisation
+$$on_{disp, t} - on_{disp, t-1} = up_{disp, t} - down_{disp, t}$$
+
+Contrainte up_down_2 : On ne peut pas allumer et éteindre l'actif $disp$ sur le même pas de temps
+$$up_{disp, t} + down_{disp, t} <=1$$
+
+Contrainte up_init :
+-> lire donnée entrée $on_{disp_{init}}$ combien de pas de temps déjà allumés en $t=0$ 
+
+Si $on_{disp_{init}}=0 => up_{disp, 1}=on_{disp, 1}$
+
+Contrainte_down_init :
+-> lire donnée entrée $on_{disp_{init}}$ combien de pas de temps déjà allumés en $t=0$ 
+
+Si $on_{disp_{init}}>0 => down_{disp, 1}=1-on_{disp, 1}$
+
+
+Contrainte dmin_on :
+Le nombre de pas de temps successifs où $on_{disp, t} = 1$ doit être supérieur ou égal à $d_{min_{disp}}$.
+
+Contrainte dmin_off :
+Le nombre de pas de temps successifs où $on_{disp, t} = 0$ doit être supérieur ou égal à $d_{min_{disp}}$.
+
+Contrainte dmin_on_init :
+Pour les pas de temps $t$, qui sont $< d_{min_{disp}}$ le nombre de pas de temps successifs où $on_{disp, t} = 1$ + le nombre d'heures où l'actif était on initialement doit être supérieur ou égal à $d_{min_{disp}}$.
+
+Contrainte dmin_off_init :
+Pour les pas de temps $t$, qui sont $< d_{min_{disp}}$ le nombre de pas de temps successifs où $on_{disp, t} = 1$ + le nombre d'heures où l'actif était off initialement doit être supérieur ou égal à $d_{min_{disp}}$.
+
 ### Contraintes de conservation énergétique (respect des rendements)
+Pour les actifs $conv$:
+$$P_{out_{conv, t}} = P_{in_{conv, t}} * Eff_{conv}$$
+
 ### Contraintes de stockage (hydraulique lac, STEP, gaz, elec)
 Rendement charge et rendement décharge
+
+
+Contrainte energy_init :
+Il faut lire la valeur de stock initiale $E_{init_{s}}$.
+$$E_{s,1} = E_{init_{s}}, s \in stock$$
+
+Contrainte charge_hydro_lac :
+Pour les actifs $hydroLac$, la charge se fait avec les précipitations:
+
+
+Contrainte charge_stock :
+
+Contrainte discharge_stock :
+
+Contrainte Pcharge_avail :
+
+Contrainte Pdischarge_avail :
+
+
 ### Contraintes import/export elec/gaz
-
-
-
- 
+Rien à ajouter car modélisé sous forme de respect des disponibilités
 
 
 
