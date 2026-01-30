@@ -3,19 +3,17 @@
 - Choisir découpage de l'optim :
     1 semaine / 1mois
     --> Comment on gère l'enchainement des optims et la préparation des inputs pour l'optim T+1 ?
-        - A la mano ?
-        - Automatisé ? et si oui comment (programme python qui manipule les excels et exécute le modèle d'optim julia ?)
+        - Automatisé dans julia avec boucle for
 - h2tank == stockage elec random comme batterie mais avec rendements différents ? ou on modélise vraiment l'H2 en tant que gas qui peut être consommé directement h2_{in}/h2_{out}
 - Sous quelle forme on construit les inputs et les outputs ? -> fixer la forme de l'excel input avec feuilles par thématique de données d'entrée
 - Quelles sorties et sous quelle forme ?
 - Quel prix pour l'hydroLac ? Est-ce bien une donnée d'entrée 'pure' qui ne dépend pas du résultat de l'optim en cours ? (même si pourrait être influencée par les optims précédentes suivant le découpage choisi)
 - Faut-il rajouter variables de dépassement qui coutent très cher pour éviter optim insolubles ?
-- EOD gaz N/S journalier 00h->23h59
-- EOD h2 N/S journalier 00h->23h59
+- EOD gaz N/S horaire
+- EOD h2 N/S horaire
 - Ajouter famille h2
 - Ajouter famille N/S
 - Ajouter Emin/Emax avec variable dépassement qui coûte cher (en-dessous/au-dessus) pour gérer les écarts
-- Changer 1 pas de temps = 1 jour
 
 
 - Ordre modélisation :
@@ -37,8 +35,15 @@ Idées pour les scenarios : jouer sur les réponses à ces questions
 
 
 Zootopia on peut rajouter des actifs en plus pour le gaz, des exports externes international ?
-Pinstallée charbon VS Pmax
-prix de l'hydroLac
-EOD gaz c'est bien de Minuit à minuit pour chaque jour ?
+Pinstallée charbon VS Pmax -> on prend les valeurs individuelles
+Prix de l'hydroLac : pas besoin de se lancer dedans
+- soit on bascule en fatal elles accepteront dans un premier temps
+- soit stock avec points de passage obligés mais quasi pareil que stockage gaz
 
-Clarifier comment on fait pour gérer les différences entre pas de temps journalier et horaire
+prix fatal -> pas besoin pour l'optim car ne coûte pas pour de vrai
+
+-> mettre tout en heures : hypothèse simplificatrice /24
+EOD horaire aussi
+
+
+Effets de bord : Anneau de garde (7jours +1 pour relancer on garde quand meme les données à la fin du 7ème jour)

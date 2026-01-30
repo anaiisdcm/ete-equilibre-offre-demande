@@ -5,6 +5,7 @@
 
 ### Fenêtre d'optimisation
 $T$ (entier positif) : Durée de la fenêtre d'optimisation (en h)
+$duration_t = 1 $ : Durée d'un pas de temps $t$ en heure 
 
 Convention débutante/finissante : est-ce qu'on affiche les valeurs d'énergie et autres valables à la fin du pas de temps $t$ ou au début du pas de temps $t$ ???
 
@@ -234,11 +235,18 @@ Pour les actifs $hydroLac$, la charge se fait avec les précipitations:
 
 Contrainte charge_stock :
 
+
 Contrainte discharge_stock :
+/!\ marche que pour actifs qui fonctionnent en $t$ et pas en $j$
+
+$$P_{out_{s, t}}* duration_t <= E_{s,1}$$
+Pdecharge_STEP[Tmax] <= stock_STEP[Tmax]
 
 Contrainte Pcharge_avail :
+Déjà fait avec P_max_in 
 
 Contrainte Pdischarge_avail :
+Déjà fait avec P_max_out
 
 
 ### Contraintes import/export elec/gaz
