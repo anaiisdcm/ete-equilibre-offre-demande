@@ -5,12 +5,18 @@
 
 ### Fenêtre d'optimisation
 $T$ (entier positif) : Durée de la fenêtre d'optimisation (en h)
-$duration_t = 1 $ : Durée d'un pas de temps $t$ en heure 
 
-Convention débutante/finissante : est-ce qu'on affiche les valeurs d'énergie et autres valables à la fin du pas de temps $t$ ou au début du pas de temps $t$ ???
+Convention finissante : On affiche les valeurs d'énergie et autres valables à la fin du pas de temps $t$
 
 
 ### Familles d'actifs
+
+#### Localisation
+$north$ : Actif étant situé sur le réseau du Nord
+
+$south$ : Actif étant situé sur le réseau du Sud
+
+#### Vecteurs énergétiques modélisés
 $elec_{in}$ : Actif consommant de l'électricité
 
 $elec_{out}$ : Actif produisant de l'électricité
@@ -18,74 +24,76 @@ $elec_{out}$ : Actif produisant de l'électricité
 $gaz_{in}$ : Actif consommant du gaz
 
 $gaz_{out}$ : Actif produisant du gaz
-<!-- $heat_{in}$ : Actif consommant de la chaleur -->
 
-<!-- $heat_{out}$ : Actif produisant de la chaleur -->
+$h2_{in}$ : Actif consommant du dihydrogène
 
-$pil_{elec_{out}} \in elec_{out} \notin gaz_{in}$ : Actif pilotable, produisant de l'électricité, mais ne consommant pas de gaz (nucléaire, charbon, fioul)
-
-$ge \in gaz_{in} \cap elec_{out}$ : Actif convertisseur de gaz en électricité (centrales CCG, TAC, cogénération)
-
-$inter \in elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse et aussi hydroLac (modélisé comme fatal pour le moment))
-
-
-$stock \in elec_{out} \cup gaz_{out}$: Actif de stockage (hydraulique lac, STEP, stockage gaz, stockage H2)
+$h2_{out}$ : Actif produisant du dihydrogène
 
 $conv$ : Actif de conversion (gaz vers élec, stockages gaz et hydrogène, STEP)
 
-<!-- $gh \in gaz_{in} \cap heat_{out}$ : Actif convertisseur de gaz en chaleur -->
+$conv_{ge} (= gaz_{in} \cap elec_{out} )\subset conv$ : Actif convertisseur de gaz en électricité (centrales CCG, TAC, cogénération)
 
-$prod_{gas} \in gas_{out}$ : Actif de production de gaz (méthanisation, pyrogazéification, H2)
+$conv_{eh2} (= elec_{in} \cap h2_{out} )\subset conv$ : Actif convertisseur d'électricité en dihydrogène (électrolyseurs)
 
-$import_{gas} \in gas_{out}$ : Imports de gaz sur le réseau
+$conv_{gh2} (= gas_{in} \cap h2_{out}) \subset conv$ : Actif convertisseur de gas en dihydrogène (vaporeformage)
+
+<!-- $prod_{gas} (= gas_{out}) $ : Actif de production de gaz (méthanisation, pyrogazéification) -->
+
+<!-- $import_{gas} \subset gas_{out}$ : Imports de gaz sur le réseau -->
+
+#### Pilotage des actifs
+
+$interconnexion \subset (elec_{in} \cup elec_{out} \cup gas_{in} \cup gas_{out} \cup h2_{in} \cup h2_{out})$
+
+$inter \subset elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse et aussi hydroLac (modélisé comme fatal pour le moment))
+
+$stock \subset (elec_{in} \cap elec_{out}) \cup (gas_{in} \cap gas_{out})$: Actif de stockage (STEP, stockage gaz)
+
+$disp \subset (elec_{out} \cup gas_{out} \cup h2_{out} \ \setminus (inter \cup stock))$ : Actif pilotable produisant de l'énergie (électricité, gaz ou h2)
 
 
 ### Capacités installées
-$P_{out_{max}, asset}$ : Puissance maximale produite par l'actif $elec_{out} \cup gaz_{out}$ <!-- \cap heat_{out} -->
+$P_{out_{max}, asset}$ : Puissance maximale produite par l'actif $asset \in elec_{out} \cup gas_{out} \cup h2_{out}$
 
-$P_{out_{min}, asset}$ : Puissance minimale produite par l'actif $elec_{out} \cup gaz_{out}$ <!-- \cap heat_{out} -->
+$P_{out_{min}, asset}$ : Puissance minimale produite par l'actif $asset \in elec_{out} \cup gas_{out} \cup h2_{out}$
 
-$P_{in_{max}, asset}$ : Puissance maximale consommée par l'actif $elec_{in} \cup gaz_{in}$  <!-- \cap heat_{in} -->
+$P_{in_{max}, asset}$ : Puissance maximale consommée par l'actif $asset \in elec_{in} \cup gas_{in} \cup h2_{in}$
 
-$P_{in_{min}, asset}$ : Puissance minimale consommée par l'actif $elec_{in} \cup gaz_{in}$  <!-- \cap heat_{in} -->
+$P_{in_{min}, asset}$ : Puissance minimale consommée par l'actif $asset \in elec_{in} \cup gas_{in} \cup h2_{in}$
 
 ### Capacités de stockage
-$E_{max_{stock}}$ : Energie maximale stockée par l'actif $ \in stock$
+$E_{max_{s}, t}, t\in [1;T]$ : Energie maximale stockée par l'actif $s \in stock$ au pas de temps $t$
 
-$E_{min_{stock}}$ : Energie minimale stockée par l'actif $ \in stock$ <!-- Probablement =0 au début -->
+$E_{min_{s}, t}, t\in [1;T]$ : Energie minimale stockée par l'actif $s \in stock$ au pas de temps $t$ <!-- Probablement =0 au début -->
 
 
 ### Durée minimale de fonctionnement et d'arrêt
-$d_{min_{pil_{elec_{out}}, ge, gas_{out}}}$ : Durée minimale de fonctionnement et d'arrêt (en h) <!--  A priori pas besoin pour les EnR donc éventuellement ajouter d_min_inter = 0 -->
+$d_{min_{asset}}$ : Durée minimale de fonctionnement et d'arrêt (en h) de l'actif pilotable $asset \in disp$<!--  A priori pas besoin pour les EnR donc éventuellement ajouter d_min_inter = 0 -->
 
 ### Prévisions
 Attention respect des facteurs de charge moyens !
 
-#### Productions fatales d'électricité
-
+#### Productions fatales
 $P_{forecast_{inter, t}}, t\in [1;T]$ : Production électrique prévue au pas de temps $t$ pour l'actif $\in inter$ (en kW)
 
-#### Productions fatales de gaz
-$P_{forecast_{biogas, t}}, t\in [1;T]$ : Production de gaz issue de la biomasse prévue au pas de temps $t$ pour l'actif $biogas$ (en kW)
-
-#### Précipitations pour l'hydraulique lac
-$P_{rain_{hydroLac}, t}, t\in [1;T]$ : Puissance turbinable récupérée au pas de temps $t$ pour l'actif $hydroLac$ (en kW > 0)
+<!-- #### Précipitations pour l'hydraulique lac
+$P_{rain_{hydroLac}, t}, t\in [1;T]$ : Puissance turbinable récupérée au pas de temps $t$ pour l'actif $hydroLac$ (en kW > 0) -->
 
 ### Besoins à satisfaire
 #### Consommation directe électrique
 
-$need_{elec,t} \in elec_{in}, t\in [1;T]$ : Besoin total en électricité au pas de temps $t$
+$need_{e,t}, e \in elec_{in}, t\in [1;T]$ : Besoin en électricité de l'actif $e$ au pas de temps $t$
 
 #### Consommation directe de gaz
 
-$need_{gas,t} \in gas_{in}, t\in [1;T]$ : Besoin total en gaz au pas de temps $t$
+$need_{g,t}, g \in gas_{in}, t\in [1;T]$ : Besoin en gaz de l'actif $g$ au pas de temps $t$
+
+#### Consommation directe de dihydrogène
+
+$need_{h2,t}, h2 \in h2_{in}, t\in [1;T]$ : Besoin en dihydrogène de l'actof $h2$ au pas de temps $t$
 
 ### Prix de l'énergie des différents actifs de production
-$Cost_{elec_{out} \setminus{\lbrace hydroLac \cup step \cup h2tank \rbrace}}$ : Coût de l'électricité produite par l'actif $elec_{out}$ (dont imports elec) (en €/kWh)
-
-$Cost_{gas_{out} \setminus{\lbrace gastank \rbrace}}$ : Coût du gaz produit par l'actif $gas_{out}$ (dont imports en gaz) (en €/kWh)
-
-$Cost_{export_{gas}\cup export_{elec}}$ : Coût (revenu ici) de la vente du gaz et de l'électricité exportée du réseau (en €/kWh)
+$Cost_{d}$ : Coût de l'énergie (électricité, gaz, h2) produite par l'actif $d \in disp$ (dont imports elec, gaz) (en €/kWh)
 
 <!-- #### Prix hydraulique
 Attention respect variations précipitations
@@ -95,7 +103,7 @@ $Cost_{hydroLac \cup step, t}, t\in [1;T]$ :$ : Coût de l'électricité produit
 ### Disponibilité des actifs
 Imports GNL par bateau modélisés sous forme de disponibilité != 0
 
-$Disp_{elec_{out}\cup gas_{out} \cup elec_{in} \cup elec_{out}, t}, t\in [1;T]$ : Disponibilité de l'actif (float, entre 0 et 1)
+$Avail_{asset, t}, t\in [1;T]$ : Disponibilité de l'actif $asset \in elec_{out}\cup gas_{out}\cup h2_{out} \cup elec_{in} \cup gas_{in} \cup h2_{in}$ (float, entre 0 et 1)
 
 
 ### Rendements
@@ -108,71 +116,80 @@ $P_{in_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
 $P_{out_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
 
 ### Energie stockée par les actifs de stockage
-$E_{stock,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $stock$ à la fin du pas de temps $t$
+$E_{s,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $s \in stock$ à la fin du pas de temps $t$
 
 ### Flag de fonctionnement des actifs dispachable
 
-$on_{disp,t} \in {\lbrace 0,1 \rbrace}$ , $disp \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $disp$ de production d'électricité est en fonctionnement au pas de temps $t$
+$on_{asset,t} \in {\lbrace 0,1 \rbrace}$ , $asset \in disp, t\in [1;T]$ : L'actif $disp$ de production d'électricité/gaz/h2 est en fonctionnement au pas de temps $t$
 
 ### Flag de mise en fonctionnement/d'arrêt des actifs dispachables
 
-$up_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $asset$ démarré au pas de temps $t$
+$up_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in disp, t\in [1;T]$ : L'actif $asset$ démarré au pas de temps $t$
 
-$down_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in pil_{elec_{out}}\cup ge, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
+$down_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in disp, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
+
 ### Puissance disponible des actifs
-$P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
+$P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$
 
-$P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
+$P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2{out}, t\in [1;T]$
 
 ## Fonction objectif
 A détailler :
 
-$$minimize : \displaystyle\sum_{a\in asset}{\sum_{t=1}^{T}{P_{in_{a,t}}* Cost_{a,t}}}$$
+$$minimize : \displaystyle\sum_{d\in disp}{\sum_{t=1}^{T}{P_{out_{d,t}}* Cost_{d,t}}}$$
 
 ## Contraintes
 ### Contraintes d'équilibre offre-demande
-#### EOD élec (instantané)
+#### EOD élec
 Somme Pelec fatal + Somme Pelec Pilotable + Somme Stockages Décharge + Import interconnexions = Conso élec donnée entrée + Somme Stockages Charge + Export interconnexions
 
 $$\displaystyle \forall t \in [1,T],\sum_{e_{in}\in elec_{in}}{P_{in_{e_{in},t}}} = \sum_{e_{out}\in elec_{out}}{P_{out_{e_{out},t}}}$$
 
-#### EOD gaz (journalier) ????
-Imports GNL bateau + Import interconnexion + Somme prod (bio)gaz + Décharge stockages = Somme Pin gaz + Conso gaz directe donnée d’entrée + Charge stockage + Export interconnexions + Export bateau ???
+#### EOD gaz Nord
+Imports GNL bateau + Import interconnexion + Somme prod gaz + Décharge stockages = Somme Pin gaz + Conso gaz directe donnée d’entrée + Charge stockage
 
-$$\displaystyle \forall t \in [1,T],\sum_{g_{in}\in gasc_{in}}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}}{P_{out_{g_{out},t}}}$$
--> voir comment on gère la granularité de l'EOD (1h/1j ?)
+$$\displaystyle \forall t \in [1,T],\sum_{g_{in}\in gas_{in}\cap north}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap north}{P_{out_{g_{out},t}}}$$
+
+#### EOD gaz Sud
+$$\displaystyle \forall t \in [1,T],\sum_{g_{in}\in gas_{in}\cap south}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap south}{P_{out_{g_{out},t}}}$$
+
+#### EOD H2 Nord
+$$\displaystyle \forall t \in [1,T],\sum_{h_{in}\in h2_{in}\cap north}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap north}{P_{out_{h_{out},t}}}$$
+
+#### EOD H2 Sud
+$$\displaystyle \forall t \in [1,T],\sum_{h_{in}\in h2_{in}\cap south}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap south}{P_{out_{h_{out},t}}}$$
 
 ### Contraintes de disponibilité
 Contrainte P_in_max_avail :
-$P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} * Disp_{asset, t}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
+$P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} * Avail_{asset, t}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$
 
 Contrainte P_out_max_avail :
-$P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} * Disp_{asset, t}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
+$P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} * Avail_{asset, t}, asset \in elec_{out} \cup gas_{out} \cup h2_{out}, t\in [1;T]$
 
 ### Contraintes Pmax
 Contrainte P_max_in :
-$P_{in_{asset, t}} <= P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
+$P_{in_{asset, t}} <= P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
 
 Contrainte P_max_in_disp :
-$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} * on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in}), t\in [1;T]$
+$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} * on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$
 
 Contrainte P_max_out :
-$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
+$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2_{out} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
 
 Contrainte P_max_out_disp :
-$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} * on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out}), t\in [1;T]$
+$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} * on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$
 
 ### Containtes Pmin
 Contrainte P_min_in :
 Si l'actif est on :
-$P_{in_{disp, t}} >= P_{in_{min}, disp} * on_{disp,t}, disp \in disp \cap(elec_{in} \cup gas_{in}), t\in [1;T]$
+$P_{in_{disp, t}} >= P_{in_{min}, disp} * on_{disp,t}, disp \in disp \cap(elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$
 
 Contrainte P_min_out :
 Si l'actif est on :
-$P_{out_{disp, t}} >= P_{out_{min}, disp} * on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out}), t\in [1;T]$
+$P_{out_{disp, t}} >= P_{out_{min}, disp} * on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$
 
 ### Contraintes durée minimale de fonctionnement et d'arrêt
-Pour tous les actifs dispatchables $disp$ (nuc, ge, gh, coal, fioul, inter, biogas, hydroLac, step, import/export, gastank, h2tank ????):
+Pour tous les actifs dispatchables $disp$ :
 
 Contrainte up_down_1 : 
 Attention initialisation
@@ -216,13 +233,13 @@ Contrainte energy_init :
 Il faut lire la valeur de stock initiale $E_{init_{s}}$.
 $$E_{s,1} = E_{init_{s}}, s \in stock$$
 
-Contrainte charge_hydro_lac :
-Pour les actifs $hydroLac$, la charge se fait avec les précipitations:
+<!-- Contrainte charge_hydro_lac :
+Pour les actifs $hydroLac$, la charge se fait avec les précipitations: -->
 
 
-Contrainte charge_stock :
+<!-- Contrainte charge_stock :
 /!\ bords
-<!-- $$P_{in_{s, t}}* duration_t + E_{s,t-1} <= EmaxAvail a définir$$ -->
+$$P_{in_{s, t}}* duration_t + E_{s,t-1} <= EmaxAvail a définir$$ -->
 
 
 Contrainte discharge_stock :
@@ -237,8 +254,19 @@ Déjà fait avec P_max_out
 
 
 ### Contraintes import/export elec/gaz
-Rien à ajouter car modélisé sous forme de respect des disponibilités
+elec_{in} par exemple pour des exports d'élec=conso artificielle
 
+ou bien elec_{out} par exemple pour des import d'élec= production artificielle
+
+doivent respecter les Pmax/Avail
+
+Contrainte imexport_gas :
+Export north = import south
+import north = export south
+
+Contrainte imexport_h2 :
+Export north = import south
+import north = export south
 
 
 ## Sorties à prévoir
