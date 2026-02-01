@@ -43,7 +43,7 @@ $conv_{gh2} (= gas_{in} \cap h2_{out}) \subset conv$ : Actif convertisseur de ga
 
 #### Pilotage des actifs
 
-$interconnexion \subset (elec_{in} \cup elec_{out} \cup gas_{in} \cup gas_{out} \cup h2_{in} \cup h2_{out})$
+$interconnexion \subset (elec_{out} \cup gas_{out} \cup h2_{out} \cup elec_{in} \cup gas_{in} \cup h2_{in})$ : Import (via $P_{out}$ : production délocalisée) ou export (via $P_{in}$ : consommation délocalisée) d'énergie par interconnexion avec un autre réseau
 
 $inter \subset elec_{out}$ : Actif production intermittente (solaire, éolien terrestre, éolien en mer, hydro fil de l'eau, valorisation des déchets, petite biomasse et aussi hydroLac (modélisé comme fatal pour le moment))
 
@@ -128,6 +128,10 @@ $up_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in disp, t\in [1;T]$ : L'actif 
 
 $down_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in disp, t\in [1;T]$ : L'actif $asset$ est arrêté au pas de temps $t$
 
+### Flag d'import/export des interconnexions
+
+$isExporting_{i,t} \in {\lbrace 0,1 \rbrace} , i \in interconnexion, t\in [1;T]$ : L'interconnexion $i$ peut exporter de l'énergie au pas de temps $t$ (1: export, 0: import)
+
 ### Puissance disponible des actifs
 $P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$
 
@@ -161,23 +165,29 @@ $$\displaystyle \forall t \in [1,T],\sum_{h_{in}\in h2_{in}\cap south}{P_{in_{h_
 
 ### Contraintes de disponibilité
 Contrainte P_in_max_avail :
-$P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} * Avail_{asset, t}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$
+$$P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} * Avail_{asset, t}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$$
 
 Contrainte P_out_max_avail :
-$P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} * Avail_{asset, t}, asset \in elec_{out} \cup gas_{out} \cup h2_{out}, t\in [1;T]$
+$$P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} * Avail_{asset, t}, asset \in elec_{out} \cup gas_{out} \cup h2_{out}, t\in [1;T]$$
 
 ### Contraintes Pmax
 Contrainte P_max_in :
-$P_{in_{asset, t}} <= P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
+$$P_{in_{asset, t}} <= P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in} \setminus{\lbrace disp \cup interconnexion \rbrace}, t\in [1;T]$$
 
 Contrainte P_max_in_disp :
-$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} * on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$
+$$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} * on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$$
+
+Contrainte P_max_export :
+$$P_{in_{i, t}} <= P_{inMaxAvail_{i, t}} * isExporting_{i,t}, i \in interconnexion, t\in [1;T]$$
 
 Contrainte P_max_out :
-$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2_{out} \setminus{\lbrace disp \rbrace}, t\in [1;T]$
+$$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2_{out} \setminus{\lbrace disp \cup interconnexion \rbrace}, t\in [1;T]$$
 
 Contrainte P_max_out_disp :
-$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} * on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$
+$$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} * on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$$
+
+Contrainte P_max_import :
+$$P_{out_{i, t}} <= P_{outMaxAvail_{i, t}} * (1-isExporting_{i,t}), i \in interconnexion, t\in [1;T]$$
 
 ### Containtes Pmin
 Contrainte P_min_in :
@@ -253,20 +263,21 @@ Contrainte Pdischarge_avail :
 Déjà fait avec P_max_out
 
 
-### Contraintes import/export elec/gaz
-elec_{in} par exemple pour des exports d'élec=conso artificielle
+### Contraintes d'équilibre aux interconnexions
+Contrainte interconnexion_gas1 :
+Export north = Import south
+$$ \displaystyle \sum_{ex_n \in interconnexion \cap gas_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap gas_{out} \cap south} P_{out_{im_s, t}} $$
+Contrainte interconnexion_gas2 : Import north = Export south
+$$ \displaystyle \sum_{im_n \in interconnexion \cap gas_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap gas_{in} \cap south} P_{in_{ex_s, t}}$$
 
-ou bien elec_{out} par exemple pour des import d'élec= production artificielle
 
-doivent respecter les Pmax/Avail
+Contrainte interconnexion_h21 :
+Export north = Import south
+$$ \displaystyle \sum_{ex_n \in interconnexion \cap h2_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap h2_{out} \cap south} P_{out_{im_s, t}} $$
 
-Contrainte imexport_gas :
-Export north = import south
-import north = export south
-
-Contrainte imexport_h2 :
-Export north = import south
-import north = export south
+Contrainte interconnexion_h22 :
+Import north = Export south
+$$ \displaystyle \sum_{im_n \in interconnexion \cap h2_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap h2_{in} \cap south} P_{in_{ex_s, t}}$$
 
 
 ## Sorties à prévoir
