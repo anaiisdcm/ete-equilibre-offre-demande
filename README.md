@@ -6,6 +6,8 @@
 ### Fenêtre d'optimisation
 $T$ (entier positif) : Durée de la fenêtre d'optimisation (en h)
 
+$duration_t = 1$ (en h)
+
 Convention finissante : On affiche les valeurs d'énergie et autres valables à la fin du pas de temps $t$
 
 
@@ -62,10 +64,15 @@ $P_{in_{max}, asset}$ : Puissance maximale consommée par l'actif $asset \in ele
 $P_{in_{min}, asset}$ : Puissance minimale consommée par l'actif $asset \in elec_{in} \cup gas_{in} \cup h2_{in}$
 
 ### Capacités de stockage
-$E_{max_{s}, t}, t\in [1;T]$ : Energie maximale stockée par l'actif $s \in stock$ au pas de temps $t$
+$E_{max_{s}}$ : Energie maximale stockée par l'actif $s \in stock$
 
-$E_{min_{s}, t}, t\in [1;T]$ : Energie minimale stockée par l'actif $s \in stock$ au pas de temps $t$ <!-- Probablement =0 au début -->
+$E_{min_{s}}$ : Energie minimale stockée par l'actif $s \in stock$ <!-- Probablement =0 au début -->
 
+$E_{minAvail_{s, t}}, s \in stock, t\in [1;T]$
+
+$E_{maxAvail_{s, t}}, s \in stock, t\in [1;T]$
+
+$E_{init_{s}}$ : Energie disponible initialement pour l'actif de stockage $s \in stock$
 
 ### Durée minimale de fonctionnement et d'arrêt
 $d_{min_{asset}}$ : Durée minimale de fonctionnement et d'arrêt (en h) de l'actif pilotable $asset \in disp$<!--  A priori pas besoin pour les EnR donc éventuellement ajouter d_min_inter = 0 -->
@@ -107,7 +114,7 @@ $Avail_{asset, t}, t\in [1;T]$ : Disponibilité de l'actif $asset \in elec_{out}
 
 
 ### Rendements
-$Eff_{conv}$ :Rendement de la conversion d'énergie effectuée par l'actif $conv$ (float, entre 0 et 1)
+$eff_{asset}$ :Rendement de la conversion d'énergie effectuée par l'actif $asset \in conv$ ou de la charge effectuée par l'actif de stockage $asset \in stock$ (float, entre 0 et 1)
 
 ## Variables
 ### Puissance de fonctionnement des actifs
@@ -116,7 +123,7 @@ $P_{in_{asset, t}}, asset \in elec_{in} \cup gas_{in}, t\in [1;T]$
 $P_{out_{asset, t}}, asset \in elec_{out} \cup gas_{out}, t\in [1;T]$
 
 ### Energie stockée par les actifs de stockage
-$E_{s,t}, asset \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $s \in stock$ à la fin du pas de temps $t$
+$E_{s,t}, s \in stock, t\in [1;T]$ : Energie stockée stockée par l'actif $s \in stock$ à la fin du pas de temps $t$
 
 ### Flag de fonctionnement des actifs dispachable
 
@@ -132,71 +139,84 @@ $down_{asset,t} \in {\lbrace 0,1 \rbrace} , asset \in disp, t\in [1;T]$ : L'acti
 
 $isExporting_{i,t} \in {\lbrace 0,1 \rbrace} , i \in interconnexion, t\in [1;T]$ : L'interconnexion $i$ peut exporter de l'énergie au pas de temps $t$ (1: export, 0: import)
 
+### Flag de charge/décharge des stockages
+
+$isCharging_{s,t} \in {\lbrace 0,1 \rbrace} , s \in stock, t\in [1;T]$ : L'actif de stockage $s$ peut charger de l'énergie au pas de temps $t$ (1: charge, 0: décharge)
+
 ### Puissance disponible des actifs
 $P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$
 
 $P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2{out}, t\in [1;T]$
 
 ## Fonction objectif
-A détailler :
-
-$$minimize : \displaystyle\sum_{d\in disp}{\sum_{t=1}^{T}{P_{out_{d,t}}* Cost_{d,t}}}$$
+$$minimize : \displaystyle\sum_{d\in disp}{\sum_{t=1}^{T}{P_{out_{d,t}}\cdot Cost_{d,t}}}$$
 
 ## Contraintes
 ### Contraintes d'équilibre offre-demande
 #### EOD élec
 Somme Pelec fatal + Somme Pelec Pilotable + Somme Stockages Décharge + Import interconnexions = Conso élec donnée entrée + Somme Stockages Charge + Export interconnexions
 
-$$\displaystyle \forall t \in [1,T],\sum_{e_{in}\in elec_{in}}{P_{in_{e_{in},t}}} = \sum_{e_{out}\in elec_{out}}{P_{out_{e_{out},t}}}$$
+$$\displaystyle \forall t \in [1,T],\\
+\sum_{e_{in}\in elec_{in}}{P_{in_{e_{in},t}}} = \sum_{e_{out}\in elec_{out}}{P_{out_{e_{out},t}}}$$
 
 #### EOD gaz Nord
 Imports GNL bateau + Import interconnexion + Somme prod gaz + Décharge stockages = Somme Pin gaz + Conso gaz directe donnée d’entrée + Charge stockage
 
-$$\displaystyle \forall t \in [1,T],\sum_{g_{in}\in gas_{in}\cap north}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap north}{P_{out_{g_{out},t}}}$$
+$$\displaystyle \forall t \in [1,T],\\
+\sum_{g_{in}\in gas_{in}\cap north}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap north}{P_{out_{g_{out},t}}}$$
 
 #### EOD gaz Sud
-$$\displaystyle \forall t \in [1,T],\sum_{g_{in}\in gas_{in}\cap south}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap south}{P_{out_{g_{out},t}}}$$
+$$\displaystyle \forall t \in [1,T],\\
+\sum_{g_{in}\in gas_{in}\cap south}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap south}{P_{out_{g_{out},t}}}$$
 
 #### EOD H2 Nord
-$$\displaystyle \forall t \in [1,T],\sum_{h_{in}\in h2_{in}\cap north}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap north}{P_{out_{h_{out},t}}}$$
+$$\displaystyle \forall t \in [1,T],\\
+\sum_{h_{in}\in h2_{in}\cap north}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap north}{P_{out_{h_{out},t}}}$$
 
 #### EOD H2 Sud
-$$\displaystyle \forall t \in [1,T],\sum_{h_{in}\in h2_{in}\cap south}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap south}{P_{out_{h_{out},t}}}$$
+$$\displaystyle \forall t \in [1,T],\\
+\sum_{h_{in}\in h2_{in}\cap south}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap south}{P_{out_{h_{out},t}}}$$
 
 ### Contraintes de disponibilité
 Contrainte P_in_max_avail :
-$$P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} * Avail_{asset, t}, asset \in elec_{in} \cup gas_{in} \cup h2_{in}, t\in [1;T]$$
+$$
+\forall asset \in elec_{in} \cup gas_{in} \cup h2_{in},\ \forall t \in [1;T], \\
+P_{inMaxAvail_{asset, t}} = P_{in_{max}, asset} \cdot Avail_{asset, t}
+$$
 
 Contrainte P_out_max_avail :
-$$P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} * Avail_{asset, t}, asset \in elec_{out} \cup gas_{out} \cup h2_{out}, t\in [1;T]$$
+$$
+\forall asset \in elec_{out} \cup gas_{out} \cup h2_{out}, \ \forall t\in [1;T], \\
+P_{outMaxAvail_{asset, t}} = P_{out_{max}, asset} \cdot Avail_{asset, t}
+$$
 
 ### Contraintes Pmax
 Contrainte P_max_in :
 $$P_{in_{asset, t}} <= P_{inMaxAvail_{asset, t}}, asset \in elec_{in} \cup gas_{in} \cup h2_{in} \setminus{\lbrace disp \cup interconnexion \rbrace}, t\in [1;T]$$
 
 Contrainte P_max_in_disp :
-$$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} * on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$$
+$$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} \cdot on_{disp,t}, disp \in disp \cap (elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$$
 
 Contrainte P_max_export :
-$$P_{in_{i, t}} <= P_{inMaxAvail_{i, t}} * isExporting_{i,t}, i \in interconnexion, t\in [1;T]$$
+$$P_{in_{i, t}} <= P_{inMaxAvail_{i, t}} \cdot isExporting_{i,t}, i \in interconnexion, t\in [1;T]$$
 
 Contrainte P_max_out :
 $$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2_{out} \setminus{\lbrace disp \cup interconnexion \rbrace}, t\in [1;T]$$
 
 Contrainte P_max_out_disp :
-$$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} * on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$$
+$$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} \cdot on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$$
 
 Contrainte P_max_import :
-$$P_{out_{i, t}} <= P_{outMaxAvail_{i, t}} * (1-isExporting_{i,t}), i \in interconnexion, t\in [1;T]$$
+$$P_{out_{i, t}} <= P_{outMaxAvail_{i, t}} \cdot (1-isExporting_{i,t}), i \in interconnexion, t\in [1;T]$$
 
 ### Containtes Pmin
 Contrainte P_min_in :
 Si l'actif est on :
-$P_{in_{disp, t}} >= P_{in_{min}, disp} * on_{disp,t}, disp \in disp \cap(elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$
+$$P_{in_{disp, t}} >= P_{in_{min}, disp} \cdot on_{disp,t}, disp \in disp \cap(elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$$
 
 Contrainte P_min_out :
 Si l'actif est on :
-$P_{out_{disp, t}} >= P_{out_{min}, disp} * on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$
+$$P_{out_{disp, t}} >= P_{out_{min}, disp} \cdot on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$$
 
 ### Contraintes durée minimale de fonctionnement et d'arrêt
 Pour tous les actifs dispatchables $disp$ :
@@ -232,52 +252,69 @@ Contrainte dmin_off_init :
 Pour les pas de temps $t$, qui sont $< d_{min_{disp}}$ le nombre de pas de temps successifs où $on_{disp, t} = 1$ + le nombre d'heures où l'actif était off initialement doit être supérieur ou égal à $d_{min_{disp}}$.
 
 ### Contraintes de conservation énergétique (respect des rendements)
-Pour les actifs $conv$:
-$$P_{out_{conv, t}} = P_{in_{conv, t}} * Eff_{conv}$$
+$$\forall c \in conv, \ \forall t \in [1,T], \\
+P_{out_{conv, t}} = P_{in_{conv, t}} \cdot eff_{conv}$$
 
 ### Contraintes de stockage (hydraulique lac, STEP, gaz, elec)
-Rendement charge et rendement décharge
-
-
 Contrainte energy_init :
 Il faut lire la valeur de stock initiale $E_{init_{s}}$.
-$$E_{s,1} = E_{init_{s}}, s \in stock$$
+$$\forall s \in stock, \\
+E_{s,1} = E_{init_{s}} + (eff_{s}\cdot P_{in_{s, 1}}-P_{out_{s, 1}}) \cdot duration_t$$
 
 <!-- Contrainte charge_hydro_lac :
 Pour les actifs $hydroLac$, la charge se fait avec les précipitations: -->
 
+Contrainte stock_energy :
+$$\forall s \in stock, \ \forall t \in [2,T],\\
+E_{s,t} =  E_{s,t-1} + (eff_{s}\cdot P_{in_{s, t}}-P_{out_{s, t}}) \cdot duration_t$$
 
-<!-- Contrainte charge_stock :
-/!\ bords
-$$P_{in_{s, t}}* duration_t + E_{s,t-1} <= EmaxAvail a définir$$ -->
+Contrainte stock_energy_max :
+$$\forall s \in stock, \ \forall t \in [1,T],\\
+E_{s,t} <= E_{maxAvail_{s, t}}$$
 
+Contrainte discharge_max_stock_init :
+$$\forall s \in stock,\\
+P_{out_{s, 1}} \cdot duration_t <= E_{init_{s}}$$
 
-Contrainte discharge_stock :
+Contrainte discharge_max_stock :
+$$\forall s \in stock, \ \forall t \in [2,T],\\
+P_{out_{s, t}} \cdot duration_t <= E_{s,t-1}$$
 
-$$P_{out_{s, t}}* duration_t <= E_{s,t}$$
+Contrainte stock_energy_min :
+$$\forall s \in stock, \ \forall t \in [1,T],\\
+E_{s,t} >= E_{minAvail_{s, t}}$$
 
-Contrainte Pcharge_avail :
-Déjà fait avec P_max_in 
+Contrainte P_charge_avail :
+$$\forall s \in stock, \ \forall t \in [1,T],\\
+P_{in_{s, t}} <= P_{inMaxAvail_{s, t}} \cdot isCharging_{s,t}$$
 
-Contrainte Pdischarge_avail :
-Déjà fait avec P_max_out
-
+Contrainte P_discharge_avail :
+$$\forall s \in stock, \ \forall t \in [1,T],\\
+P_{out_{s, t}} <= P_{outMaxAvail_{s, t}} \cdot (1 - isCharging_{s,t})$$
 
 ### Contraintes d'équilibre aux interconnexions
 Contrainte interconnexion_gas1 :
 Export north = Import south
-$$ \displaystyle \sum_{ex_n \in interconnexion \cap gas_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap gas_{out} \cap south} P_{out_{im_s, t}} $$
+$$ \displaystyle 
+\forall t \in [1,T],\\
+\sum_{ex_n \in interconnexion \cap gas_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap gas_{out} \cap south} P_{out_{im_s, t}} $$
 Contrainte interconnexion_gas2 : Import north = Export south
-$$ \displaystyle \sum_{im_n \in interconnexion \cap gas_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap gas_{in} \cap south} P_{in_{ex_s, t}}$$
+$$ \displaystyle
+\forall t \in [1,T],\\
+\sum_{im_n \in interconnexion \cap gas_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap gas_{in} \cap south} P_{in_{ex_s, t}}$$
 
 
 Contrainte interconnexion_h21 :
 Export north = Import south
-$$ \displaystyle \sum_{ex_n \in interconnexion \cap h2_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap h2_{out} \cap south} P_{out_{im_s, t}} $$
+$$ \displaystyle
+\forall t \in [1,T],\\
+\sum_{ex_n \in interconnexion \cap h2_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap h2_{out} \cap south} P_{out_{im_s, t}} $$
 
 Contrainte interconnexion_h22 :
 Import north = Export south
-$$ \displaystyle \sum_{im_n \in interconnexion \cap h2_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap h2_{in} \cap south} P_{in_{ex_s, t}}$$
+$$ \displaystyle
+\forall t \in [1,T],\\
+\sum_{im_n \in interconnexion \cap h2_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap h2_{in} \cap south} P_{in_{ex_s, t}}$$
 
 
 ## Sorties à prévoir
