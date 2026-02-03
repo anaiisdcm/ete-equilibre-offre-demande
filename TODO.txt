@@ -7,14 +7,12 @@
     -> Quelles sorties et sous quelle forme ?
 - EOD gaz N/S horaire -> mettre tout en heures : hypothèse simplificatrice sur les données d'entrée /24
 - EOD h2 N/S horaire -> mettre tout en heures : hypothèse simplificatrice sur les données d'entrée/24
-- Ajouter famille h2
-- Ajouter famille N/S
 - Faut-il rajouter variables de dépassement qui coutent très cher pour éviter optim insolubles ?
 - Ajouter Emin/Emax avec variable dépassement qui coûte cher (en-dessous/au-dessus) pour gérer les écarts
 
 
 Les devoirs (ouin ouin) :
-- Compléter la doc README avec famille H2, famille N/S et la fin des contraintes (stockage, EOD H2 N/S, EOD Gaz N/S)
+- Compléter la doc README avec la fin des contraintes au propre (d_min + initialisations)
 - Finir excel d'entrées (forme fixée)
 - Fixer la forme de l'excel de sortie
 - Coder le problème :
