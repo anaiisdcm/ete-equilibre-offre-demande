@@ -9,7 +9,7 @@ using XLSX
 Tmax = 168 #optimization for 1 week (7*24=168 hours)
 
 #data for load and inter generation
-data_file = "Excel entrées.xlsx"
+data_file = "inputs.xlsx"
 
 #data for load generation
 load = XLSX.readdata(data_file, "Données instantanées", "C2:C169")
