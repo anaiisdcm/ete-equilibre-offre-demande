@@ -13,11 +13,8 @@
 
 Les devoirs (ouin ouin) :
 - Compléter la doc README avec la fin des contraintes au propre (d_min + initialisations)
-- Finir excel d'entrées (forme fixée)
 - Fixer la forme de l'excel de sortie
 - Coder le problème :
-    - Lecture des entrées de l'excel + Choix solveur
-    - Ajouter variables et contraintes pour l'élec uniquement sans stockage cf TP mais avec la bonne nomenclature -> tester optim juste elec avec valeurs simples
     - Ajouter stockage elec + tester avec exemple simple
     - Ajouter actifs gaz simple (pas stockage) + tester simple
     - Boucle pour optimiser 52 semaines
