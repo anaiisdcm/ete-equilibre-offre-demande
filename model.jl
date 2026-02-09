@@ -2,7 +2,6 @@
 using JuMP
 #use the solver you want
 using HiGHS
-#using Gurobi
 #package to read excel files
 using XLSX
 
@@ -19,20 +18,17 @@ load = Float64.(vec(load))
 solar = XLSX.readdata(data_file, "Données instantanées", "E2:E169")
 wind_on = XLSX.readdata(data_file, "Données instantanées", "G2:G169")
 wind_off = XLSX.readdata(data_file, "Données instantanées", "H2:H169")
-thermal_fatal = XLSX.readdata(data_file, "Données instantanées", "I2:I169")
-hydroFO_fatal = XLSX.readdata(data_file, "Données instantanées", "J2:J169")
-#hydroLake_fatal = XLSX.readdata(data_file, "Données instantanées", "insérer la bonne plage de données")
-biomass = XLSX.readdata(data_file, "Données instantanées", "K2:K169")
-waste = XLSX.readdata(data_file, "Données instantanées", "L2:L169")
+hydroFO_fatal = XLSX.readdata(data_file, "Données instantanées", "K2:K169")
+hydroLake_fatal = XLSX.readdata(data_file, "Données instantanées", "L2:L169")
+thermal_fatal = XLSX.readdata(data_file, "Données instantanées", "N2:N169")
 
 #To get rid of potential missing values
 solar           = Float64.(coalesce.(vec(solar), 0.0))
 wind_on         = Float64.(coalesce.(vec(wind_on), 0.0))
 wind_off        = Float64.(coalesce.(vec(wind_off), 0.0))
-thermal_fatal   = Float64.(coalesce.(vec(thermal_fatal), 0.0))
+hydroLake_fatal = Float64.(coalesce.(vec(hydroLake_fatal), 0.0))
 hydroFO_fatal   = Float64.(coalesce.(vec(hydroFO_fatal), 0.0))
-biomass         = Float64.(coalesce.(vec(biomass), 0.0))
-waste           = Float64.(coalesce.(vec(waste), 0.0))
+thermal_fatal   = Float64.(coalesce.(vec(thermal_fatal), 0.0))
 
 #data for disp clusters
 N_disp = 39
@@ -72,7 +68,6 @@ cexc = zeros(Tmax) #cost of in excess energy $/MWh
 #create the optimization model
 #############################
 model = Model(HiGHS.Optimizer) #J'ai laissé ce solver pour l'instant.
-#model = Model(Gurobi.Optimizer)
 
 #############################
 #define the variables
@@ -99,7 +94,7 @@ model = Model(HiGHS.Optimizer) #J'ai laissé ce solver pour l'instant.
 #define the constraints
 #############################
 #balance constraint
-@constraint(model, balance[t in 1:Tmax], sum(Pout_disp[t,g] for g in 1:N_disp) + solar[t] + wind_on[t] + wind_off[t] + thermal_fatal[t] + hydroFO_fatal[t] + biomass[t] + waste[t] + Puns[t] - load[t] - Pexc[t] == 0)
+@constraint(model, balance[t in 1:Tmax], sum(Pout_disp[t,g] for g in 1:N_disp) + solar[t] + wind_on[t] + wind_off[t] + thermal_fatal[t] + hydroFO_fatal[t] + hydroLake_fatal[t] + Puns[t] - load[t] - Pexc[t] == 0)
 # inter assets Pmax constraints
 @constraint(model, max_inter[t in 1:Tmax, g in 1:N_inter], Pinter[t,g] <= Pmax_inter[g])
 #disp unit Pmax in and out constraints
