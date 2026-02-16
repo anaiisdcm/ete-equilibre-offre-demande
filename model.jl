@@ -92,19 +92,23 @@ for a in ASSETS
     Avail[a] = ones(Tmax)*avail[a]
 end
 
-# LOAD PRODUCTION DATA
-sheet2 = "PROD"
+# LOAD CONSUMTION AND PRODUCTION TIMESERIES
+sheet2 = "TIMESERIES"
 
 #data for electric load
 load_elec = XLSX.readdata(file, sheet2, "C2:C169")
 load_elec = Float64.(coalesce(vec(load_elec),0.0))
+load_gas = XLSX.readdata(file, sheet2, "D2:D169")
+load_gas = Float64.(coalesce(vec(load_gas),0.0))
+load_h2 = XLSX.readdata(file, sheet2, "E2:E169")
+load_h2 = Float64.(coalesce(vec(load_h2),0.0))
 #data for inter generation
-solar = XLSX.readdata(file, sheet2, "E2:E169")
-wind_on = XLSX.readdata(file, sheet2, "G2:G169")
-wind_off = XLSX.readdata(file, sheet2, "H2:H169")
-hydroFO_fatal = XLSX.readdata(file, sheet2, "K2:K169")
-hydroLake_fatal = XLSX.readdata(file, sheet2, "L2:L169")
-thermal_fatal = XLSX.readdata(file, sheet2, "N2:N169")
+solar = XLSX.readdata(file, sheet2, "F2:F169")
+wind_on = XLSX.readdata(file, sheet2, "H2:H169")
+wind_off = XLSX.readdata(file, sheet2, "I2:I169")
+hydroFO_fatal = XLSX.readdata(file, sheet2, "L2:L169")
+hydroLake_fatal = XLSX.readdata(file, sheet2, "M2:M169")
+thermal_fatal = XLSX.readdata(file, sheet2, "O2:O169")
 #To get rid of potential missing values
 solar           = Float64.(coalesce.(vec(solar), 0.0))
 wind_on         = Float64.(coalesce.(vec(wind_on), 0.0))
@@ -154,7 +158,37 @@ model = Model(HiGHS.Optimizer)
 @constraint(model, [a in thermal_fatal_assets, t in 1:Tmax], P_out[a,t] == thermal_fatal[t])
 
 #EOD elec
-@constraint(model, [t in 1:Tmax], sum(P_out[a,t] for a in union(elec_out,inter)) + sum(P_out[a,t] for a in  union(elec_out,disp)) + sum(P_out[a,t] for a in union(elec_out,stock)) == load_elec[t] + sum(P_in[a,t] for a in union(elec_in,stock)))
+if !isempty(union(elec_out, elec_in))
+    @constraint(model, [t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(elec_out,inter))
+    + sum(P_out[a,t] for a in intersect(elec_out,disp))
+    + sum(P_out[a,t] for a in intersect(elec_out,stock))
+    == load_elec[t] +
+    sum(P_in[a,t] for a in intersect(elec_in,stock))
+    + sum(P_in[a,t] for a in intersect(elec_in,disp)))
+end
+
+#EOD gas
+if !isempty(union(gas_out, gas_in))
+    @constraint(model, [t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(gas_out,inter))
+    + sum(P_out[a,t] for a in intersect(gas_out,disp))
+    + sum(P_out[a,t] for a in intersect(gas_out,stock))
+    == load_gas[t]
+    + sum(P_in[a,t] for a in intersect(gas_in,stock))
+    + sum(P_in[a,t] for a in intersect(gas_in,disp)))
+end
+
+#EOD h2
+if !isempty(union(h2_out, h2_in))
+    @constraint(model, [t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(h2_out,inter))
+    + sum(P_out[a,t] for a in intersect(h2_out,disp))
+    + sum(P_out[a,t] for a in intersect(h2_out,stock))
+    == load_h2[t]
+    + sum(P_in[a,t] for a in intersect(h2_in,stock))
+    + sum(P_in[a,t] for a in intersect(h2_in,disp)))
+end
 
 #Availability
 P_out_max_avail = Dict{Tuple{String,Int}, Float64}()
@@ -246,6 +280,8 @@ optimize!(model)
 #Results
 @show termination_status(model)
 @show objective_value(model)
+
+
 
 outfile = "results.xlsx"
 
