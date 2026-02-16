@@ -96,8 +96,8 @@ end
 sheet2 = "PROD"
 
 #data for electric load
-load = XLSX.readdata(file, sheet2, "C2:C169")
-load = Float64.(coalesce(vec(load),0.0))
+load_elec = XLSX.readdata(file, sheet2, "C2:C169")
+load_elec = Float64.(coalesce(vec(load_elec),0.0))
 #data for inter generation
 solar = XLSX.readdata(file, sheet2, "E2:E169")
 wind_on = XLSX.readdata(file, sheet2, "G2:G169")
@@ -154,7 +154,7 @@ model = Model(HiGHS.Optimizer)
 @constraint(model, [a in thermal_fatal_assets, t in 1:Tmax], P_out[a,t] == thermal_fatal[t])
 
 #EOD elec
-@constraint(model, [t in 1:Tmax], sum(P_out[a,t] for a in inter) + sum(P_out[a,t] for a in disp) + sum(P_out[a,t] for a in stock) == load[t] + sum(P_in[a,t] for a in stock))
+@constraint(model, [t in 1:Tmax], sum(P_out[a,t] for a in union(elec_out,inter)) + sum(P_out[a,t] for a in  union(elec_out,disp)) + sum(P_out[a,t] for a in union(elec_out,stock)) == load_elec[t] + sum(P_in[a,t] for a in union(elec_in,stock)))
 
 #Availability
 P_out_max_avail = Dict{Tuple{String,Int}, Float64}()
@@ -245,7 +245,7 @@ optimize!(model)
 #------------------------------
 #Results
 @show termination_status(model)
-@show objective_value(model)s
+@show objective_value(model)
 
 outfile = "results.xlsx"
 
