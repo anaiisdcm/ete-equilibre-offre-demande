@@ -153,7 +153,7 @@ $$minimize : \displaystyle\sum_{d\in disp}{\sum_{t=1}^{T}{P_{out_{d,t}}\cdot Cos
 
 ## Contraintes
 ### Contraintes d'équilibre offre-demande
-#### EOD élec
+#### ✅ EOD élec
 Somme Pelec fatal + Somme Pelec Pilotable + Somme Stockages Décharge + Import interconnexions = Conso élec donnée entrée + Somme Stockages Charge + Export interconnexions
 
 $$\displaystyle \forall t \in [1,T],\\
@@ -200,32 +200,32 @@ $$P_{in_{disp, t}} <= P_{inMaxAvail_{disp, t}} \cdot on_{disp,t}, disp \in disp 
 Contrainte P_max_export :
 $$P_{in_{i, t}} <= P_{inMaxAvail_{i, t}} \cdot isExporting_{i,t}, i \in interconnexion, t\in [1;T]$$
 
-Contrainte P_max_out :
+✅ Contrainte P_max_out :
 $$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}}, asset \in elec_{out} \cup gas_{out} \cup h2_{out} \setminus{\lbrace disp \cup interconnexion \rbrace}, t\in [1;T]$$
 
-Contrainte P_max_out_disp :
+✅ Contrainte P_max_out_disp :
 $$P_{out_{asset, t}} <= P_{outMaxAvail_{asset, t}} \cdot on_{disp,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$$
 
 Contrainte P_max_import :
 $$P_{out_{i, t}} <= P_{outMaxAvail_{i, t}} \cdot (1-isExporting_{i,t}), i \in interconnexion, t\in [1;T]$$
 
 ### Containtes Pmin
-Contrainte P_min_in :
+Contrainte P_min_in_disp :
 Si l'actif est on :
 $$P_{in_{disp, t}} >= P_{in_{min}, disp} \cdot on_{disp,t}, disp \in disp \cap(elec_{in} \cup gas_{in} \cup h2_{in}), t\in [1;T]$$
 
-Contrainte P_min_out :
+✅ Contrainte P_min_out_disp :
 Si l'actif est on :
 $$P_{out_{disp, t}} >= P_{out_{min}, disp} \cdot on_{dips,t}, disp \in disp \cap(elec_{out} \cup gas_{out} \cup h2_{out}), t\in [1;T]$$
 
 ### Contraintes durée minimale de fonctionnement et d'arrêt
 Pour tous les actifs dispatchables $disp$ :
 
-Contrainte up_down_1 : 
+✅ Contrainte up_down_1 : 
 Attention initialisation
 $$on_{disp, t} - on_{disp, t-1} = up_{disp, t} - down_{disp, t}$$
 
-Contrainte up_down_2 : On ne peut pas allumer et éteindre l'actif $disp$ sur le même pas de temps
+✅Contrainte up_down_2 : On ne peut pas allumer et éteindre l'actif $disp$ sur le même pas de temps
 $$up_{disp, t} + down_{disp, t} <=1$$
 
 Contrainte up_init :
@@ -239,24 +239,25 @@ Contrainte_down_init :
 Si $on_{disp_{init}}>0 => down_{disp, 1}=1-on_{disp, 1}$
 
 
-Contrainte dmin_on :
+✅ Contrainte dmin_on :
 Le nombre de pas de temps successifs où $on_{disp, t} = 1$ doit être supérieur ou égal à $d_{min_{disp}}$.
 
-Contrainte dmin_off :
+✅ Contrainte dmin_off :
 Le nombre de pas de temps successifs où $on_{disp, t} = 0$ doit être supérieur ou égal à $d_{min_{disp}}$.
 
-Contrainte dmin_on_init :
+✅ Contrainte dmin_on_init :
 Pour les pas de temps $t$, qui sont $< d_{min_{disp}}$ le nombre de pas de temps successifs où $on_{disp, t} = 1$ + le nombre d'heures où l'actif était on initialement doit être supérieur ou égal à $d_{min_{disp}}$.
 
-Contrainte dmin_off_init :
+✅ Contrainte dmin_off_init :
 Pour les pas de temps $t$, qui sont $< d_{min_{disp}}$ le nombre de pas de temps successifs où $on_{disp, t} = 1$ + le nombre d'heures où l'actif était off initialement doit être supérieur ou égal à $d_{min_{disp}}$.
 
 ### Contraintes de conservation énergétique (respect des rendements)
+✅ Contrainte conv_eff :
 $$\forall c \in conv, \ \forall t \in [1,T], \\
 P_{out_{conv, t}} = P_{in_{conv, t}} \cdot eff_{conv}$$
 
 ### Contraintes de stockage (hydraulique lac, STEP, gaz, elec)
-Contrainte energy_init :
+✅ Contrainte energy_init :
 Il faut lire la valeur de stock initiale $E_{init_{s}}$.
 $$\forall s \in stock, \\
 E_{s,1} = E_{init_{s}} + (eff_{s}\cdot P_{in_{s, 1}}-P_{out_{s, 1}}) \cdot duration_t$$
@@ -264,7 +265,7 @@ E_{s,1} = E_{init_{s}} + (eff_{s}\cdot P_{in_{s, 1}}-P_{out_{s, 1}}) \cdot durat
 <!-- Contrainte charge_hydro_lac :
 Pour les actifs $hydroLac$, la charge se fait avec les précipitations: -->
 
-Contrainte stock_energy :
+✅ Contrainte stock_energy :
 $$\forall s \in stock, \ \forall t \in [2,T],\\
 E_{s,t} =  E_{s,t-1} + (eff_{s}\cdot P_{in_{s, t}}-P_{out_{s, t}}) \cdot duration_t$$
 
@@ -272,11 +273,11 @@ Contrainte stock_energy_max :
 $$\forall s \in stock, \ \forall t \in [1,T],\\
 E_{s,t} <= E_{maxAvail_{s, t}}$$
 
-Contrainte discharge_max_stock_init :
+✅ Contrainte discharge_max_stock_init :
 $$\forall s \in stock,\\
 P_{out_{s, 1}} \cdot duration_t <= E_{init_{s}}$$
 
-Contrainte discharge_max_stock :
+✅ Contrainte discharge_max_stock :
 $$\forall s \in stock, \ \forall t \in [2,T],\\
 P_{out_{s, t}} \cdot duration_t <= E_{s,t-1}$$
 
@@ -284,11 +285,11 @@ Contrainte stock_energy_min :
 $$\forall s \in stock, \ \forall t \in [1,T],\\
 E_{s,t} >= E_{minAvail_{s, t}}$$
 
-Contrainte P_charge_avail :
+✅ Contrainte P_charge_avail :
 $$\forall s \in stock, \ \forall t \in [1,T],\\
 P_{in_{s, t}} <= P_{inMaxAvail_{s, t}} \cdot isCharging_{s,t}$$
 
-Contrainte P_discharge_avail :
+✅ Contrainte P_discharge_avail :
 $$\forall s \in stock, \ \forall t \in [1,T],\\
 P_{out_{s, t}} <= P_{outMaxAvail_{s, t}} \cdot (1 - isCharging_{s,t})$$
 

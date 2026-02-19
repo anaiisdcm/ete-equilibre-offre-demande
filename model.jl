@@ -159,7 +159,7 @@ model = Model(HiGHS.Optimizer)
 
 #EOD elec
 if !isempty(union(elec_out, elec_in))
-    @constraint(model, [t in 1:Tmax],
+    @constraint(model, eod_elec[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(elec_out,inter))
     + sum(P_out[a,t] for a in intersect(elec_out,disp))
     + sum(P_out[a,t] for a in intersect(elec_out,stock))
@@ -170,7 +170,7 @@ end
 
 #EOD gas
 if !isempty(union(gas_out, gas_in))
-    @constraint(model, [t in 1:Tmax],
+    @constraint(model, eod_gas[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(gas_out,inter))
     + sum(P_out[a,t] for a in intersect(gas_out,disp))
     + sum(P_out[a,t] for a in intersect(gas_out,stock))
@@ -181,7 +181,7 @@ end
 
 #EOD h2
 if !isempty(union(h2_out, h2_in))
-    @constraint(model, [t in 1:Tmax],
+    @constraint(model, eod_h2[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(h2_out,inter))
     + sum(P_out[a,t] for a in intersect(h2_out,disp))
     + sum(P_out[a,t] for a in intersect(h2_out,stock))
@@ -205,43 +205,41 @@ for a in ASSETS, t in 1:Tmax
 end
 
 #Pmin/Pmax disp
-@constraint(model, [a in disp, t in 1:Tmax], P_out[a,t] ≤ P_out_max_avail[(a,t)] * on[a,t])
-@constraint(model, [a in disp, t in 1:Tmax], P_out[a,t] ≥ Pout_min[a] * on[a,t])
+@constraint(model, p_max_out_disp[a in intersect(disp,union(elec_out, gas_out, h2_out)), t in 1:Tmax], P_out[a,t] ≤ P_out_max_avail[(a,t)] * on[a,t])
+@constraint(model, p_min_out_disp[a in intersect(disp,union(elec_out, gas_out, h2_out)), t in 1:Tmax], P_out[a,t] ≥ Pout_min[a] * on[a,t])
 #@constraint(model, [a in disp, t in 1:Tmax], P_in[a,t] ≤ P_in_max_avail[(a,t)] * on[a,t])
 #@constraint(model, [a in disp, t in 1:Tmax], P_in[a,t] ≥ Pin_min[a] * on[a,t])
 
 
 #Pmin/Pmax non disp
 #@constraint(model, [a in elec_in ∪ gas_in , t in 1:Tmax], P_in[a,t] ≤ P_in_max_avail[(a,t)])
-@constraint(model, [a in setdiff(elec_out, disp), t in 1:Tmax], P_out[a,t] ≤ P_out_max_avail[(a,t)])
+@constraint(model, p_max_out[a in setdiff(union(elec_out, gas_out, h2_out), disp), t in 1:Tmax], P_out[a,t] ≤ P_out_max_avail[(a,t)])
 
 #dmin constraints
+@constraint(model, up_down_1[a in disp, t in 2:Tmax], on[a,t] - on[a,t-1] == up[a,t] - down[a,t])
 
-@constraint(model, [a in disp, t in 2:Tmax], on[a,t] - on[a,t-1] == up[a,t] - down[a,t])
-
-@constraint(model, [a in disp, t in 1:Tmax], up[a,t] + down[a,t] ≤ 1)
+@constraint(model, up_down_2[a in disp, t in 1:Tmax], up[a,t] + down[a,t] ≤ 1)
 
 for a in disp
     if on_init[a] == 0
-        @constraint(model, up[a,1] == on[a,1])
+        @constraint(model, up_init, up[a,1] == on[a,1])
     else
-        @constraint(model, down[a,1] == 1 - on[a,1])
+        @constraint(model, down_init, down[a,1] == 1 - on[a,1])
     end
 
     if dmin[a] > 0
-        @constraint(model, [t in dmin[a]:Tmax], on[a,t] ≥ sum(up[a,i] for i in t-dmin[a]+1:t))
-        @constraint(model, [t in dmin[a]:Tmax], on[a,t] ≤ 1 - sum(down[a,i] for i in t-dmin[a]+1:t))
-        @constraint(model, [t in 1:(dmin[a]-1)], on[a,t] >= sum(up[a,i] for i in 1:t))
-        @constraint(model, [t in 1:(dmin[a]-1)], on[a,t] <= 1 - sum(down[a,i] for i in 1:t))
+        @constraint(model, dmin_on[t in dmin[a]:Tmax], on[a,t] ≥ sum(up[a,i] for i in t-dmin[a]+1:t))
+        @constraint(model, dmin_off[t in dmin[a]:Tmax], on[a,t] ≤ 1 - sum(down[a,i] for i in t-dmin[a]+1:t))
+        @constraint(model, dmin_on_init[t in 1:(dmin[a]-1)], on[a,t] >= sum(up[a,i] for i in 1:t))
+        @constraint(model, dmin_off_init[t in 1:(dmin[a]-1)], on[a,t] <= 1 - sum(down[a,i] for i in 1:t))
 
     end
 end
 
 #conv constraints
-@constraint(model, [a in conv_ge, t in 1:Tmax], P_out[a,t] == eff[a] * P_in[a,t])
+@constraint(model, conv_eff[a in conv, t in 1:Tmax], P_out[a,t] == eff[a] * P_in[a,t])
 
 #Stock constraints
-
 E_max_avail = Dict{Tuple{String,Int}, Float64}()
 E_min_avail = Dict{Tuple{String,Int}, Float64}()
 P_in_max_avail_stock = Dict{Tuple{String,Int}, Float64}()
@@ -255,10 +253,10 @@ for a in stock, t in 1:Tmax
 end
 
 # Energy stock init
-@constraint(model, [a in stock], E[a,1] == E_init[a] + (eff[a]*P_in[a,1] - P_out[a,1]) * duration_t)
+@constraint(model, energy_init[a in stock], E[a,1] == E_init[a] + (eff[a]*P_in[a,1] - P_out[a,1]) * duration_t)
 
 # Energy stock
-@constraint(model, [a in stock, t in 2:Tmax], E[a,t] == E[a,t-1] + (eff[a]*P_in[a,t] - P_out[a,t]) * duration_t
+@constraint(model, stock_energy[a in stock, t in 2:Tmax], E[a,t] == E[a,t-1] + (eff[a]*P_in[a,t] - P_out[a,t]) * duration_t
 )
 
 # # Charge boundaries
@@ -266,22 +264,21 @@ end
 # @constraint(model, [a in stock, t in 1:Tmax], E[a,t] >= E_min_avail[(a,t)])
 
 #Discharge init and max
-@constraint(model, [a in stock], P_out[a,1] * duration_t <= E_init[a])
-@constraint(model, [a in stock, t in 2:Tmax], P_out[a,t] * duration_t <= E[a,t-1])
+@constraint(model, discharge_max_stock_init[a in stock], P_out[a,1] * duration_t <= E_init[a])
+@constraint(model, discharge_max_stock[a in stock, t in 2:Tmax], P_out[a,t] * duration_t <= E[a,t-1])
 
 #Charge and discharge available
-@constraint(model, [a in stock, t in 1:Tmax], P_in[a,t] <= P_in_max_avail_stock[(a,t)] * isCharging[a,t])
-@constraint(model, [a in stock, t in 1:Tmax], P_out[a,t] <= P_out_max_avail_stock[(a,t)] * (1 - isCharging[a,t]))
+@constraint(model, p_charge_avail[a in stock, t in 1:Tmax], P_in[a,t] <= P_in_max_avail_stock[(a,t)] * isCharging[a,t])
+@constraint(model, p_discharge_avail[a in stock, t in 1:Tmax], P_out[a,t] <= P_out_max_avail_stock[(a,t)] * (1 - isCharging[a,t]))
 
 
 #solve model
+set_optimizer_attribute(model, "mip_rel_gap", 0.005)
 optimize!(model)
 #------------------------------
 #Results
 @show termination_status(model)
 @show objective_value(model)
-
-
 
 outfile = "results.xlsx"
 
