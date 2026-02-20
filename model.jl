@@ -5,18 +5,12 @@ using HiGHS
 #package to read excel files
 using XLSX
 
-Tmax = 168 #optimization for 1 week (7*24=168 hours)
-Tmaxmax = 192 #anneau de garde
+Tmax = 24 #optimization for 1 week (7*24=168 hours)
+Tmaxmax = Tmax + 4 #anneau de garde
 duration_t = 1
 
 #Data loading
-file = "inputs_stock.xlsx"
-
-#LOAD ASSETS DATA
-sheet1 = "ASSETS"
-
-raw_names = vec(XLSX.readdata(file, sheet1, "A2:A10000"))
-n_assets = count(!ismissing, raw_names)
+file = "inputs_test.xlsx"
 
 function read_col(file, sheet, col, default, T, n)
     data = vec(XLSX.readdata(file, sheet, "$(col)2:$(col)10000"))
@@ -30,6 +24,12 @@ function read_col_dict(file, sheet, col, default, T, n, name)
     return dict
 end
 
+#LOAD ASSETS DATA
+sheet1 = "ASSETS"
+
+raw_names = vec(XLSX.readdata(file, sheet1, "A2:A10000"))
+n_assets = count(!ismissing, raw_names)
+
 name = read_col(file, sheet1, "A", "", String, n_assets)
 energy_in = read_col_dict(file, sheet1, "B", "", String, n_assets, name)
 energy_out = read_col_dict(file, sheet1, "C", "", String, n_assets, name)
@@ -39,11 +39,13 @@ Pout_max = read_col_dict(file, sheet1, "F", 0.0, Float64, n_assets, name)
 Pout_min = read_col_dict(file, sheet1, "G", 0.0, Float64, n_assets, name)
 dmin =  read_col_dict(file, sheet1, "H", 0, Int, n_assets, name)
 on_init =  read_col_dict(file, sheet1, "I", 0, Int, n_assets, name)
-eff = read_col_dict(file, sheet1, "J", 1.0, Float64, n_assets, name)
-E_max = read_col_dict(file, sheet1, "K", 0.0, Float64, n_assets, name)
-E_init = read_col_dict(file, sheet1, "L", 0.0, Float64, n_assets, name)
-price = read_col_dict(file, sheet1, "M", 0.0, Float64, n_assets, name)
-family = read_col_dict(file, sheet1, "N", "", String, n_assets, name)
+h_on =  read_col_dict(file, sheet1, "J", 0, Int, n_assets, name)
+h_off =  read_col_dict(file, sheet1, "K", 0, Int, n_assets, name)
+eff = read_col_dict(file, sheet1, "L", 1.0, Float64, n_assets, name)
+E_max = read_col_dict(file, sheet1, "M", 0.0, Float64, n_assets, name)
+E_init = read_col_dict(file, sheet1, "N", 0.0, Float64, n_assets, name)
+price = read_col_dict(file, sheet1, "O", 0.0, Float64, n_assets, name)
+family = read_col_dict(file, sheet1, "P", "", String, n_assets, name)
 
 #Building a set of assets
 ASSETS = Set(String.(vec(name)))
@@ -136,14 +138,47 @@ for ic in INTERCONNEXIONS
     Pout_max[ic] = interconn_pmax[ic]
 end
 
+function compute_h_on(a, Tmax, on)
+    if value(on[a,Tmax]) < 0.5
+        return 0
+    end
+
+    h = 0
+    for t in reverse(1:Tmax)
+        if value(on[a,t]) > 0.5
+            h += 1
+        else
+            break
+        end
+    end
+    return h
+end
+
+function compute_h_off(a, Tmax, on)
+    if value(on[a,Tmax]) > 0.5
+        return 0
+    end
+
+    h = 0
+    for t in reverse(1:Tmax)
+        if value(on[a,t]) < 0.5
+            h += 1
+        else
+            break
+        end
+    end
+    return h
+end
+
 function run_model()
     global on_init
+    global h_on
+    global h_off
+    global E_init
+    global file
 
     for n in 0:1 #boucle sur les 52 semaines
         println("Optimizing week $n ...")
-
-        #Data loading
-        file = "inputs_stock.xlsx"
 
         # LOAD CONSUMTION AND PRODUCTION TIMESERIES
         sheet2 = "TIMESERIES"
@@ -299,23 +334,26 @@ function run_model()
         #Pmin/Pmax non disp
         #@constraint(model, [a in elec_in ∪ gas_in , t in 1:Tmaxmax], P_in[a,t] ≤ P_in_max_avail[(a,t)])
         @constraint(model, p_max_out[a in setdiff(union(elec_out, gas_out, h2_out), disp), t in 1:Tmaxmax], P_out[a,t] ≤ P_out_max_avail[(a,t)])
-
-
-
-        file = "results_semaine_$(n).xlsx" #on ouvre les résultats de la semaine précédente pour récupérer l'état d'activité des actifs
-        sheet4 = "ASSETS_STATE" #feuille allouée à l'état d'activité
-
+  
         if n == 0
             for a in disp
-                on_init[a] = 1
+                on_init[a] = 0
+                h_on[a] = 0
+                h_off[a] = dmin[a]
             end
         end
 
         if n > 0
+            file = "results_semaine_$(n-1).xlsx" #on ouvre les résultats de la semaine précédente pour récupérer l'état d'activité des actifs
+            sheet4 = "ASSETS_STATE" #feuille allouée à l'état d'activité
+
             name = read_col(file, sheet4, "A", "", String, n_assets)
             on_init =  read_col_dict(file, sheet4, "B", 0, Int, n_assets, name)
-            E_init = read_col_dict(file, sheet4, "C", 0.0, Float64, n_assets, name)
+            h_on =  read_col_dict(file, sheet4, "C", 0, Int, n_assets, name)
+            h_off =  read_col_dict(file, sheet4, "D", 0, Int, n_assets, name)
+            E_init = read_col_dict(file, sheet4, "E", 0.0, Float64, n_assets, name)
         end
+
         
         #dmin constraints
         @constraint(model, up_down_1[a in disp, t in 2:Tmaxmax], on[a,t] - on[a,t-1] == up[a,t] - down[a,t])
@@ -335,15 +373,34 @@ function run_model()
             on[a,t] <= 1 - sum(down[a,i] for i in t-dmin[a]+1:t)
         )
 
-        @constraint(model,
-            dmin_on_init[a in disp, t in 1:Tmaxmax; dmin[a] > 0 && t < dmin[a]],
-            on[a,t] >= sum(up[a,i] for i in 1:t)
-        )
+        # @constraint(model,
+        #     dmin_on_init[a in disp, t in 1:Tmaxmax; dmin[a] > 0 && t < dmin[a]],
+        #     on[a,t] >= sum(up[a,i] for i in 1:t)
+        # )
+        # @constraint(model,
+        #     dmin_off_init[a in disp, t in 1:Tmaxmax; dmin[a] > 0 && t < dmin[a]],
+        #     on[a,t] <= 1 - sum(down[a,i] for i in 1:t)
+        # )
 
         @constraint(model,
-            dmin_off_init[a in disp, t in 1:Tmaxmax; dmin[a] > 0 && t < dmin[a]],
-            on[a,t] <= 1 - sum(down[a,i] for i in 1:t)
+            min_up_init[a in disp, t in 1:Tmaxmax;
+                on_init[a] == 1 &&
+                dmin[a] > 0 &&
+                t <= max(dmin[a] - h_on[a], 0)
+            ],
+            on[a,t] == 1
         )
+        @show max(dmin["Methaniseur"] - h_on["Methaniseur"], 0)
+
+        @constraint(model,
+            min_down_init[a in disp, t in 1:Tmaxmax;
+                on_init[a] == 0 &&
+                dmin[a] > 0 &&
+                t <= max(dmin[a] - h_off[a], 0)
+            ],
+            on[a,t] == 0
+        )
+        @show max(dmin["Methaniseur"] - h_off["Methaniseur"], 0)
 
         #conv constraints
         @constraint(model, conv_eff[a in conv, t in 1:Tmaxmax], P_out[a,t] == eff[a] * P_in[a,t])
@@ -407,6 +464,11 @@ function run_model()
         @show objective_value(model)
 
         println("\n\n\n")
+
+        on_serie = [value(on["Methaniseur", t]) for t in 1:Tmaxmax]
+        @show on_serie
+        pout_max_serie = [value(P_out_max_avail["Methaniseur", t]) for t in 1:Tmaxmax]
+        @show pout_max_serie
 
         outfile = "results.xlsx"
 
@@ -472,26 +534,40 @@ function run_model()
             
             sheet["A1"] = "asset_name"
             sheet["B1"] = "on_t=$(Tmax)"
-            sheet["C1"] = "energy_t=$(Tmax)"
+            sheet["C1"] = "h_on_t=$(Tmax)"
+            sheet["D1"] = "h_off_t=$(Tmax)"
+            sheet["E1"] = "energy_t=$(Tmax)"
             for (j,a) in enumerate(ASSETS)
                 sheet[j+1, 1] = a
                 # Is asset on at the end of the optimized week ?
                 if a in disp
-                    sheet[2, j+1] = value(on[a,Tmax])
+                    sheet[j+1, 2] = value(on[a,Tmax])
                 else
-                    sheet[2, j+1] = 0
+                    sheet[j+1, 2] = 0
+                end 
+                # How many hours the asset has been on at the end of the optimized week ?
+                if a in disp
+                    sheet[j+1, 3] = compute_h_on(a, Tmax, on)
+                else
+                    sheet[j+1, 3] = 0
+                end
+                # How many hours the asset has been off at the end of the optimized week ?
+                if a in disp
+                    sheet[j+1, 4] = compute_h_off(a, Tmax, on)
+                else
+                    sheet[j+1, 4] = 0
                 end
                 # How much energy is stored at the end of the optimized week ?
                 if a in stock
-                    sheet[3, j+1] = value(E[a,Tmax])
+                    sheet[j+1, 5] = value(E[a,Tmax])
                 else
-                    sheet[3, j+1] = 0.0
+                    sheet[j+1, 5] = 0.0
                 end
             end
 
         end
 
-        cp("results.xlsx", "results_semaine_$(n+1).xlsx"; force=true) #sauvegarde le fichier résultats de la semaine n et laisse le fichier "results" en fichier glissant
+        cp("results.xlsx", "results_semaine_$(n).xlsx"; force=true) #sauvegarde le fichier résultats de la semaine n et laisse le fichier "results" en fichier glissant
 
     end
 end
