@@ -139,7 +139,9 @@ end
 function run_model()
     global on_init
 
-    for n in 0:0 #boucle sur les 52 semaines
+    for n in 0:1 #boucle sur les 52 semaines
+        println("Optimizing week $n ...")
+
         #Data loading
         file = "inputs_stock.xlsx"
 
@@ -299,8 +301,9 @@ function run_model()
         @constraint(model, p_max_out[a in setdiff(union(elec_out, gas_out, h2_out), disp), t in 1:Tmaxmax], P_out[a,t] ≤ P_out_max_avail[(a,t)])
 
 
-        file = "results.xlsx" #on ouvre les résultats de la semaine précédente pour récupérer l'état d'activité des actifs
-        sheet1 = "nom_pour_on_init" #feuille allouée à l'état d'activité
+
+        file = "results_semaine_$(n).xlsx" #on ouvre les résultats de la semaine précédente pour récupérer l'état d'activité des actifs
+        sheet4 = "ASSETS_STATE" #feuille allouée à l'état d'activité
 
         if n == 0
             for a in disp
@@ -309,7 +312,9 @@ function run_model()
         end
 
         if n > 0
-            on_init =  read_col_dict(file, sheet1, "I", 0, Int, n_assets)
+            name = read_col(file, sheet4, "A", "", String, n_assets)
+            on_init =  read_col_dict(file, sheet4, "B", 0, Int, n_assets, name)
+            E_init = read_col_dict(file, sheet4, "C", 0.0, Float64, n_assets, name)
         end
         
         #dmin constraints
@@ -401,6 +406,8 @@ function run_model()
         @show termination_status(model)
         @show objective_value(model)
 
+        println("\n\n\n")
+
         outfile = "results.xlsx"
 
         XLSX.openxlsx(outfile, mode="w") do xf
@@ -408,7 +415,7 @@ function run_model()
             ############################
             # SHEET 1 : P_out
             ############################
-            sheet = XLSX.addsheet!(xf, "P_out")
+            sheet = XLSX.addsheet!(xf, "P_OUT")
 
             # header
             sheet["A1"] = "Time"
@@ -427,7 +434,7 @@ function run_model()
             ############################
             # SHEET 2 : P_in
             ############################
-            sheet = XLSX.addsheet!(xf, "P_in")
+            sheet = XLSX.addsheet!(xf, "P_IN")
 
             sheet["A1"] = "Time"
             for (j,a) in enumerate(union(elec_in, gas_in, h2_in))
@@ -444,7 +451,7 @@ function run_model()
             ############################
             # SHEET 3 : STOCK ENERGY
             ############################
-            sheet = XLSX.addsheet!(xf, "Stock_E")
+            sheet = XLSX.addsheet!(xf, "STOCK_E")
 
             sheet["A1"] = "Time"
             for (j,a) in enumerate(stock)
@@ -455,6 +462,30 @@ function run_model()
                 sheet[t+1, 1] = t
                 for (j,a) in enumerate(stock)
                     sheet[t+1, j+1] = value(E[a,t])
+                end
+            end
+
+            ############################
+            # SHEET 4 : FINAL ASSETS STATE
+            ############################
+            sheet = XLSX.addsheet!(xf, "ASSETS_STATE")
+            
+            sheet["A1"] = "asset_name"
+            sheet["B1"] = "on_t=$(Tmax)"
+            sheet["C1"] = "energy_t=$(Tmax)"
+            for (j,a) in enumerate(ASSETS)
+                sheet[j+1, 1] = a
+                # Is asset on at the end of the optimized week ?
+                if a in disp
+                    sheet[2, j+1] = value(on[a,Tmax])
+                else
+                    sheet[2, j+1] = 0
+                end
+                # How much energy is stored at the end of the optimized week ?
+                if a in stock
+                    sheet[3, j+1] = value(E[a,Tmax])
+                else
+                    sheet[3, j+1] = 0.0
                 end
             end
 
