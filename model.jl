@@ -22,7 +22,7 @@ function read_col(file, sheet, col, default, T, n)
     return T.(coalesce.(data, default))[1:n]
 end
 
-function read_col_dict(file, sheet, col, default, T, n)
+function read_col_dict(file, sheet, col, default, T, n, name)
     data = vec(XLSX.readdata(file, sheet, "$(col)2:$(col)10000"))
     data = T.(coalesce.(data, default))[1:n]
     dict = Dict(name[i] => data[i] for i in eachindex(name))
@@ -30,19 +30,19 @@ function read_col_dict(file, sheet, col, default, T, n)
 end
 
 name = read_col(file, sheet1, "A", "", String, n_assets)
-energy_in = read_col_dict(file, sheet1, "B", "", String, n_assets)
-energy_out = read_col_dict(file, sheet1, "C", "", String, n_assets)
-region = read_col_dict(file, sheet1, "D", "", String, n_assets)
-avail = read_col_dict(file, sheet1, "E", 0.0, Float64, n_assets)
-Pout_max = read_col_dict(file, sheet1, "F", 0.0, Float64, n_assets)
-Pout_min = read_col_dict(file, sheet1, "G", 0.0, Float64, n_assets)
-dmin =  read_col_dict(file, sheet1, "H", 0, Int, n_assets)
-on_init =  read_col_dict(file, sheet1, "I", 0, Int, n_assets)
-eff = read_col_dict(file, sheet1, "J", 1.0, Float64, n_assets)
-E_max = read_col_dict(file, sheet1, "K", 0.0, Float64, n_assets)
-E_init = read_col_dict(file, sheet1, "L", 0.0, Float64, n_assets)
-price = read_col_dict(file, sheet1, "M", 0.0, Float64, n_assets)
-family = read_col_dict(file, sheet1, "N", "", String, n_assets)
+energy_in = read_col_dict(file, sheet1, "B", "", String, n_assets, name)
+energy_out = read_col_dict(file, sheet1, "C", "", String, n_assets, name)
+region = read_col_dict(file, sheet1, "D", "n", String, n_assets, name)
+avail = read_col_dict(file, sheet1, "E", 0.0, Float64, n_assets, name)
+Pout_max = read_col_dict(file, sheet1, "F", 0.0, Float64, n_assets, name)
+Pout_min = read_col_dict(file, sheet1, "G", 0.0, Float64, n_assets, name)
+dmin =  read_col_dict(file, sheet1, "H", 0, Int, n_assets, name)
+on_init =  read_col_dict(file, sheet1, "I", 0, Int, n_assets, name)
+eff = read_col_dict(file, sheet1, "J", 1.0, Float64, n_assets, name)
+E_max = read_col_dict(file, sheet1, "K", 0.0, Float64, n_assets, name)
+E_init = read_col_dict(file, sheet1, "L", 0.0, Float64, n_assets, name)
+price = read_col_dict(file, sheet1, "M", 0.0, Float64, n_assets, name)
+family = read_col_dict(file, sheet1, "N", "", String, n_assets, name)
 
 #Building a set of assets
 ASSETS = Set(String.(vec(name)))
@@ -117,6 +117,18 @@ hydroLake_fatal = Float64.(coalesce.(vec(hydroLake_fatal), 0.0))
 hydroFO_fatal   = Float64.(coalesce.(vec(hydroFO_fatal), 0.0))
 thermal_fatal   = Float64.(coalesce.(vec(thermal_fatal), 0.0))
 
+#LOAD INTERCONNEXION DATA
+sheet3 = "INTERCONN"
+
+raw_names = vec(XLSX.readdata(file, sheet3, "A2:A10000"))
+n_interconn = count(!ismissing, raw_names)
+name = read_col(file, sheet3, "A", "", String, n_interconn)
+
+interconn_pmax = read_col_dict(file, sheet3, "B", 0.0, Float64, n_interconn, name)
+interconn_avail = read_col_dict(file, sheet3, "C", 0.0, Float64, n_interconn, name)
+interconn_energy = read_col_dict(file, sheet3, "D", "", String, n_interconn, name)
+interconn_region_ref = read_col_dict(file, sheet3, "E", "n", String, n_interconn, name)
+
 #############################
 #create the optimization model
 #############################
@@ -127,8 +139,8 @@ model = Model(HiGHS.Optimizer)
 #############################
 
 #Power of functioning
-@variable(model, P_in[a in union(elec_in, gas_in), t in 1:Tmax] ≥ 0)
-@variable(model, P_out[a in union(elec_out, gas_out), t in 1:Tmax] ≥ 0)
+@variable(model, P_in[a in union(elec_in, gas_in, h2_in), t in 1:Tmax] ≥ 0)
+@variable(model, P_out[a in union(elec_out, gas_out, h2_out), t in 1:Tmax] ≥ 0)
 
 #Flags disp
 @variable(model, on[a in disp, t in 1:Tmax], Bin)
@@ -136,8 +148,8 @@ model = Model(HiGHS.Optimizer)
 @variable(model, down[a in disp, t in 1:Tmax], Bin)
 
 #Available power
-@variable(model, P_in_max_avail[a in union(elec_in,gas_in), t in 1:Tmax] ≥ 0)
-@variable(model, P_out_max_avail[a in union(elec_out,gas_out), t in 1:Tmax] ≥ 0)
+@variable(model, P_in_max_avail[a in union(elec_in, gas_in, h2_in), t in 1:Tmax] ≥ 0)
+@variable(model, P_out_max_avail[a in union(elec_out, gas_out, h2_out), t in 1:Tmax] ≥ 0)
 
 # #stock variables
 @variable(model, E[a in stock, t in 1:Tmax] ≥ 0)
@@ -220,21 +232,28 @@ end
 
 @constraint(model, up_down_2[a in disp, t in 1:Tmax], up[a,t] + down[a,t] ≤ 1)
 
-for a in disp
-    if on_init[a] == 0
-        @constraint(model, up_init, up[a,1] == on[a,1])
-    else
-        @constraint(model, down_init, down[a,1] == 1 - on[a,1])
-    end
+@constraint(model, up_init[a in disp; on_init[a] == 0], up[a,1] == on[a,1])
+@constraint(model, down_init[a in disp; on_init[a] == 1], down[a,1] == 1 - on[a,1])
 
-    if dmin[a] > 0
-        @constraint(model, dmin_on[t in dmin[a]:Tmax], on[a,t] ≥ sum(up[a,i] for i in t-dmin[a]+1:t))
-        @constraint(model, dmin_off[t in dmin[a]:Tmax], on[a,t] ≤ 1 - sum(down[a,i] for i in t-dmin[a]+1:t))
-        @constraint(model, dmin_on_init[t in 1:(dmin[a]-1)], on[a,t] >= sum(up[a,i] for i in 1:t))
-        @constraint(model, dmin_off_init[t in 1:(dmin[a]-1)], on[a,t] <= 1 - sum(down[a,i] for i in 1:t))
+@constraint(model,
+    dmin_on[a in disp, t in 1:Tmax; dmin[a] > 0 && t >= dmin[a]],
+    on[a,t] >= sum(up[a,i] for i in t-dmin[a]+1:t)
+)
 
-    end
-end
+@constraint(model,
+    dmin_off[a in disp, t in 1:Tmax; dmin[a] > 0 && t >= dmin[a]],
+    on[a,t] <= 1 - sum(down[a,i] for i in t-dmin[a]+1:t)
+)
+
+@constraint(model,
+    dmin_on_init[a in disp, t in 1:Tmax; dmin[a] > 0 && t < dmin[a]],
+    on[a,t] >= sum(up[a,i] for i in 1:t)
+)
+
+@constraint(model,
+    dmin_off_init[a in disp, t in 1:Tmax; dmin[a] > 0 && t < dmin[a]],
+    on[a,t] <= 1 - sum(down[a,i] for i in 1:t)
+)
 
 #conv constraints
 @constraint(model, conv_eff[a in conv, t in 1:Tmax], P_out[a,t] == eff[a] * P_in[a,t])
