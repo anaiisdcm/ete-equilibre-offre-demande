@@ -75,6 +75,10 @@ conv_ge  = Set(a for a in conv if a in gas_in && a in elec_out)
 conv_eh2 = Set(a for a in conv if a in elec_in && a in h2_out)
 conv_gh2 = Set(a for a in conv if a in gas_in && a in h2_out)
 
+#Region of assets
+north = Set(a for a in ASSETS if region[a] == "n")
+south = Set(a for a in ASSETS if region[a] == "s")
+
 #Assets Functioning
 disp  = Set(a for a in ASSETS if family[a] == "disp")
 inter = Set(a for a in ASSETS if family[a] == "inter")
@@ -98,10 +102,12 @@ sheet2 = "TIMESERIES"
 #data for electric load
 load_elec = XLSX.readdata(file, sheet2, "C2:C169")
 load_elec = Float64.(coalesce(vec(load_elec),0.0))
-load_gas = XLSX.readdata(file, sheet2, "D2:D169")
-load_gas = Float64.(coalesce(vec(load_gas),0.0))
-load_h2 = XLSX.readdata(file, sheet2, "E2:E169")
-load_h2 = Float64.(coalesce(vec(load_h2),0.0))
+load_gas_north = XLSX.readdata(file, sheet2, "D2:D169")
+load_gas_north = Float64.(coalesce(vec(load_gas_north),0.0))
+load_gas_south = XLSX.readdata(file, sheet2, "D2:D169")
+load_gas_south = Float64.(coalesce(vec(load_gas_south),0.0))
+load_h2_north = XLSX.readdata(file, sheet2, "E2:E169")
+load_h2_north = Float64.(coalesce(vec(load_h2_north),0.0))
 #data for inter generation
 solar = XLSX.readdata(file, sheet2, "F2:F169")
 wind_on = XLSX.readdata(file, sheet2, "H2:H169")
@@ -180,26 +186,47 @@ if !isempty(union(elec_out, elec_in))
     + sum(P_in[a,t] for a in intersect(elec_in,disp)))
 end
 
-#EOD gas
-if !isempty(union(gas_out, gas_in))
-    @constraint(model, eod_gas[t in 1:Tmax],
-    sum(P_out[a,t] for a in intersect(gas_out,inter))
-    + sum(P_out[a,t] for a in intersect(gas_out,disp))
-    + sum(P_out[a,t] for a in intersect(gas_out,stock))
-    == load_gas[t]
-    + sum(P_in[a,t] for a in intersect(gas_in,stock))
-    + sum(P_in[a,t] for a in intersect(gas_in,disp)))
+#EOD gas north
+if !isempty(union(intersect(gas_out,north), intersect(gas_in,north)))
+    @constraint(model, eod_gas_north[t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(intersect(gas_out,north),inter))
+    + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),disp))
+    + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),stock))
+    == load_gas_north[t]
+    + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),stock))
+    + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),disp)))
 end
 
-#EOD h2
-if !isempty(union(h2_out, h2_in))
-    @constraint(model, eod_h2[t in 1:Tmax],
-    sum(P_out[a,t] for a in intersect(h2_out,inter))
-    + sum(P_out[a,t] for a in intersect(h2_out,disp))
-    + sum(P_out[a,t] for a in intersect(h2_out,stock))
-    == load_h2[t]
-    + sum(P_in[a,t] for a in intersect(h2_in,stock))
-    + sum(P_in[a,t] for a in intersect(h2_in,disp)))
+#EOD gas south
+if !isempty(union(intersect(gas_out,south), intersect(gas_in,south)))
+    @constraint(model, eod_gas_south[t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(intersect(gas_out,south),inter))
+    + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),disp))
+    + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),stock))
+    == load_gas_south[t]
+    + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),stock))
+    + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),disp)))
+end
+
+#EOD h2 north
+if !isempty(union(intersect(h2_out,north), intersect(h2_in,north)))
+    @constraint(model, eod_h2_north[t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(intersect(h2_out,north),inter))
+    + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),disp))
+    + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),stock))
+    == load_h2_north[t]
+    + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),stock))
+    + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),disp)))
+end
+
+#EOD h2 south
+if !isempty(union(intersect(h2_out,south), intersect(h2_in,south)))
+    @constraint(model, eod_h2_south[t in 1:Tmax],
+    sum(P_out[a,t] for a in intersect(intersect(h2_out,south),inter))
+    + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),disp))
+    + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),stock))
+    == sum(P_in[a,t] for a in intersect(intersect(h2_in,south),stock))
+    + sum(P_in[a,t] for a in intersect(intersect(h2_in,south),disp)))
 end
 
 #Availability
