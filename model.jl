@@ -33,7 +33,7 @@ name = read_col(file, sheet1, "A", "", String, n_assets)
 energy_in = read_col_dict(file, sheet1, "B", "", String, n_assets, name)
 energy_out = read_col_dict(file, sheet1, "C", "", String, n_assets, name)
 region = read_col_dict(file, sheet1, "D", "n", String, n_assets, name)
-avail = read_col_dict(file, sheet1, "E", 0.0, Float64, n_assets, name)
+avail = read_col_dict(file, sheet1, "E", 1.0, Float64, n_assets, name)
 Pout_max = read_col_dict(file, sheet1, "F", 0.0, Float64, n_assets, name)
 Pout_min = read_col_dict(file, sheet1, "G", 0.0, Float64, n_assets, name)
 dmin =  read_col_dict(file, sheet1, "H", 0, Int, n_assets, name)
@@ -55,7 +55,7 @@ gas_out  = Set{String}()
 h2_in    = Set{String}()
 h2_out   = Set{String}()
 
-for asset in name
+for asset in ASSETS
     ein  = energy_in[asset]
     eout = energy_out[asset]
 
@@ -104,17 +104,17 @@ load_elec = XLSX.readdata(file, sheet2, "C2:C169")
 load_elec = Float64.(coalesce(vec(load_elec),0.0))
 load_gas_north = XLSX.readdata(file, sheet2, "D2:D169")
 load_gas_north = Float64.(coalesce(vec(load_gas_north),0.0))
-load_gas_south = XLSX.readdata(file, sheet2, "D2:D169")
+load_gas_south = XLSX.readdata(file, sheet2, "E2:E169")
 load_gas_south = Float64.(coalesce(vec(load_gas_south),0.0))
-load_h2_north = XLSX.readdata(file, sheet2, "E2:E169")
+load_h2_north = XLSX.readdata(file, sheet2, "F2:F169")
 load_h2_north = Float64.(coalesce(vec(load_h2_north),0.0))
 #data for inter generation
-solar = XLSX.readdata(file, sheet2, "F2:F169")
-wind_on = XLSX.readdata(file, sheet2, "H2:H169")
-wind_off = XLSX.readdata(file, sheet2, "I2:I169")
-hydroFO_fatal = XLSX.readdata(file, sheet2, "L2:L169")
-hydroLake_fatal = XLSX.readdata(file, sheet2, "M2:M169")
-thermal_fatal = XLSX.readdata(file, sheet2, "O2:O169")
+solar = XLSX.readdata(file, sheet2, "G2:G169")
+wind_on = XLSX.readdata(file, sheet2, "I2:I169")
+wind_off = XLSX.readdata(file, sheet2, "J2:J169")
+hydroFO_fatal = XLSX.readdata(file, sheet2, "M2:M169")
+hydroLake_fatal = XLSX.readdata(file, sheet2, "N2:N169")
+thermal_fatal = XLSX.readdata(file, sheet2, "P2:P169")
 #To get rid of potential missing values
 solar           = Float64.(coalesce.(vec(solar), 0.0))
 wind_on         = Float64.(coalesce.(vec(wind_on), 0.0))
@@ -131,9 +131,36 @@ n_interconn = count(!ismissing, raw_names)
 name = read_col(file, sheet3, "A", "", String, n_interconn)
 
 interconn_pmax = read_col_dict(file, sheet3, "B", 0.0, Float64, n_interconn, name)
-interconn_avail = read_col_dict(file, sheet3, "C", 0.0, Float64, n_interconn, name)
+interconn_avail = read_col_dict(file, sheet3, "C", 1.0, Float64, n_interconn, name)
 interconn_energy = read_col_dict(file, sheet3, "D", "", String, n_interconn, name)
 interconn_region_ref = read_col_dict(file, sheet3, "E", "n", String, n_interconn, name)
+
+INTERCONNEXIONS = Set(String.(vec(name)))
+for ic in INTERCONNEXIONS
+    ic_energy = interconn_energy[ic]
+
+    if ic_energy == "elec"
+        push!(elec_in, ic)
+        push!(elec_out, ic)
+    elseif ic_energy == "gas"
+        push!(gas_in, ic)
+        push!(gas_out, ic)
+    elseif ic_energy == "h2"
+        push!(h2_in, ic)
+        push!(h2_out, ic)
+    end
+
+    if interconn_region_ref[ic] == "n"
+        push!(north, ic)
+    elseif interconn_region_ref[ic] == "s"
+        push!(south, ic)
+    end
+end
+
+for ic in INTERCONNEXIONS
+    Avail[ic] = ones(Tmax)*interconn_avail[ic]
+    Pout_max[ic] = interconn_pmax[ic]
+end
 
 #############################
 #create the optimization model
@@ -187,46 +214,54 @@ if !isempty(union(elec_out, elec_in))
 end
 
 #EOD gas north
-if !isempty(union(intersect(gas_out,north), intersect(gas_in,north)))
+if !isempty(intersect(union(gas_out, gas_in),north))
     @constraint(model, eod_gas_north[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(intersect(gas_out,north),inter))
     + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),disp))
     + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),stock))
+    + sum(P_out[ic, t] for ic in intersect(INTERCONNEXIONS, gas_out, north))
     == load_gas_north[t]
     + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),stock))
-    + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),disp)))
+    + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),disp))
+    + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, north)))
 end
 
 #EOD gas south
-if !isempty(union(intersect(gas_out,south), intersect(gas_in,south)))
+if !isempty(intersect(union(gas_out,gas_in),south))
     @constraint(model, eod_gas_south[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(intersect(gas_out,south),inter))
     + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),disp))
     + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),stock))
+    + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, gas_out, south))
     == load_gas_south[t]
     + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),stock))
-    + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),disp)))
+    + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),disp))
+    + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, south)))
 end
 
 #EOD h2 north
-if !isempty(union(intersect(h2_out,north), intersect(h2_in,north)))
+if !isempty(intersect(union(h2_out,h2_in),north))
     @constraint(model, eod_h2_north[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(intersect(h2_out,north),inter))
     + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),disp))
     + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),stock))
+    + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out, north))
     == load_h2_north[t]
     + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),stock))
-    + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),disp)))
+    + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),disp))
+    + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, north)))
 end
 
 #EOD h2 south
-if !isempty(union(intersect(h2_out,south), intersect(h2_in,south)))
+if !isempty(intersect(union(h2_out,h2_in),south))
     @constraint(model, eod_h2_south[t in 1:Tmax],
     sum(P_out[a,t] for a in intersect(intersect(h2_out,south),inter))
     + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),disp))
     + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),stock))
+    + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out, south))
     == sum(P_in[a,t] for a in intersect(intersect(h2_in,south),stock))
-    + sum(P_in[a,t] for a in intersect(intersect(h2_in,south),disp)))
+    + sum(P_in[a,t] for a in intersect(intersect(h2_in,south),disp))
+    + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, south)))
 end
 
 #Availability
@@ -234,8 +269,8 @@ P_out_max_avail = Dict{Tuple{String,Int}, Float64}()
 P_in_max_avail  = Dict{Tuple{String,Int}, Float64}()
 
 #To avoid quadratic constraints
-for a in ASSETS, t in 1:Tmax
-    if a in union(elec_out,gas_out)
+for a in union(ASSETS, INTERCONNEXIONS), t in 1:Tmax
+    if a in union(elec_out, gas_out, h2_out)
         P_out_max_avail[(a,t)] = Pout_max[a] * Avail[a][t]
     end
     # if a in union(elec_in,gas_in)
@@ -317,6 +352,23 @@ end
 @constraint(model, p_charge_avail[a in stock, t in 1:Tmax], P_in[a,t] <= P_in_max_avail_stock[(a,t)] * isCharging[a,t])
 @constraint(model, p_discharge_avail[a in stock, t in 1:Tmax], P_out[a,t] <= P_out_max_avail_stock[(a,t)] * (1 - isCharging[a,t]))
 
+# Interconnexions
+@constraint(model, interconn_gas1[exn in intersect(INTERCONNEXIONS, gas_in, north),
+                                  ims in intersect(INTERCONNEXIONS, gas_out, south),
+                                  t in 1:Tmax],
+                                  P_in[exn,t] == P_out[ims,t])
+@constraint(model, interconn_gas2[imn in intersect(INTERCONNEXIONS, gas_out, north),
+                                  exs in intersect(INTERCONNEXIONS, gas_in, south),
+                                  t in 1:Tmax],
+                                  P_out[imn,t] == P_in[exs,t])
+@constraint(model, interconn_h21[exn in intersect(INTERCONNEXIONS, h2_in, north),
+                                  ims in intersect(INTERCONNEXIONS, h2_out, south),
+                                  t in 1:Tmax],
+                                  P_in[exn,t] == P_out[ims,t])
+@constraint(model, interconn_h22[imn in intersect(INTERCONNEXIONS, h2_out, north),
+                                  exs in intersect(INTERCONNEXIONS, h2_in, south),
+                                  t in 1:Tmax],
+                                  P_out[imn,t] == P_in[exs,t])
 
 #solve model
 set_optimizer_attribute(model, "mip_rel_gap", 0.005)
@@ -337,14 +389,14 @@ XLSX.openxlsx(outfile, mode="w") do xf
 
     # header
     sheet["A1"] = "Time"
-    for (j,a) in enumerate(union(elec_out, gas_out))
+    for (j,a) in enumerate(union(elec_out, gas_out, h2_out))
         sheet[1, j+1] = a
     end
 
     # values
     for t in 1:Tmax
         sheet[t+1, 1] = t
-        for (j,a) in enumerate(union(elec_out, gas_out))
+        for (j,a) in enumerate(union(elec_out, gas_out, h2_out))
             sheet[t+1, j+1] = value(P_out[a,t])
         end
     end
@@ -355,13 +407,13 @@ XLSX.openxlsx(outfile, mode="w") do xf
     sheet = XLSX.addsheet!(xf, "P_in")
 
     sheet["A1"] = "Time"
-    for (j,a) in enumerate(union(elec_in, gas_in))
+    for (j,a) in enumerate(union(elec_in, gas_in, h2_in))
         sheet[1, j+1] = a
     end
 
     for t in 1:Tmax
         sheet[t+1, 1] = t
-        for (j,a) in enumerate(union(elec_in, gas_in))
+        for (j,a) in enumerate(union(elec_in, gas_in, h2_in))
             sheet[t+1, j+1] = value(P_in[a,t])
         end
     end

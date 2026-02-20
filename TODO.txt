@@ -15,8 +15,6 @@ Les devoirs (ouin ouin) :
 - Compléter la doc README avec la fin des contraintes au propre (d_min + initialisations)
 - Fixer la forme de l'excel de sortie
 - Coder le problème :
-    - Ajouter actifs gaz simple (pas stockage) + tester simple
-    - Séparer EOD N/S gaz
     - Emin/Emax stocks à tester/finir d'impélmenter
     - Boucle pour optimiser 52 semaines
     - Ultérieurement : Ajouter stockage gaz + tester simple

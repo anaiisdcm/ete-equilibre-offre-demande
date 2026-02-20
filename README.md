@@ -159,21 +159,21 @@ Somme Pelec fatal + Somme Pelec Pilotable + Somme Stockages Décharge + Import i
 $$\displaystyle \forall t \in [1,T],\\
 \sum_{e_{in}\in elec_{in}}{P_{in_{e_{in},t}}} = \sum_{e_{out}\in elec_{out}}{P_{out_{e_{out},t}}}$$
 
-#### EOD gaz Nord
+#### ✅ EOD gaz Nord
 Imports GNL bateau + Import interconnexion + Somme prod gaz + Décharge stockages = Somme Pin gaz + Conso gaz directe donnée d’entrée + Charge stockage
 
 $$\displaystyle \forall t \in [1,T],\\
 \sum_{g_{in}\in gas_{in}\cap north}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap north}{P_{out_{g_{out},t}}}$$
 
-#### EOD gaz Sud
+#### ✅ EOD gaz Sud
 $$\displaystyle \forall t \in [1,T],\\
 \sum_{g_{in}\in gas_{in}\cap south}{P_{in_{g_{in},t}}} = \sum_{g_{out}\in gas_{out}\cap south}{P_{out_{g_{out},t}}}$$
 
-#### EOD H2 Nord
+#### ✅ EOD H2 Nord
 $$\displaystyle \forall t \in [1,T],\\
 \sum_{h_{in}\in h2_{in}\cap north}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap north}{P_{out_{h_{out},t}}}$$
 
-#### EOD H2 Sud
+#### ✅ EOD H2 Sud
 $$\displaystyle \forall t \in [1,T],\\
 \sum_{h_{in}\in h2_{in}\cap south}{P_{in_{h_{in},t}}} = \sum_{h_{out}\in h2_{out}\cap south}{P_{out_{h_{out},t}}}$$
 
@@ -294,24 +294,25 @@ $$\forall s \in stock, \ \forall t \in [1,T],\\
 P_{out_{s, t}} <= P_{outMaxAvail_{s, t}} \cdot (1 - isCharging_{s,t})$$
 
 ### Contraintes d'équilibre aux interconnexions
-Contrainte interconnexion_gas1 :
+✅ Contrainte interconnexion_gas1 :
 Export north = Import south
 $$ \displaystyle 
 \forall t \in [1,T],\\
 \sum_{ex_n \in interconnexion \cap gas_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap gas_{out} \cap south} P_{out_{im_s, t}} $$
-Contrainte interconnexion_gas2 : Import north = Export south
+
+✅ Contrainte interconnexion_gas2 : Import north = Export south
 $$ \displaystyle
 \forall t \in [1,T],\\
 \sum_{im_n \in interconnexion \cap gas_{out} \cap north} P_{out_{im_n, t}} = \sum_{ex_s \in interconnexion \cap gas_{in} \cap south} P_{in_{ex_s, t}}$$
 
 
-Contrainte interconnexion_h21 :
+✅ Contrainte interconnexion_h21 :
 Export north = Import south
 $$ \displaystyle
 \forall t \in [1,T],\\
 \sum_{ex_n \in interconnexion \cap h2_{in} \cap north} P_{in_{ex_n, t}} = \sum_{im_s \in interconnexion \cap h2_{out} \cap south} P_{out_{im_s, t}} $$
 
-Contrainte interconnexion_h22 :
+✅ Contrainte interconnexion_h22 :
 Import north = Export south
 $$ \displaystyle
 \forall t \in [1,T],\\
