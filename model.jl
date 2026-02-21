@@ -5,8 +5,8 @@ using HiGHS
 #package to read excel files
 using XLSX
 
-Tmax = 24 #optimization for 1 week (7*24=168 hours)
-Tmaxmax = Tmax + 4 #anneau de garde
+Tmax = 168 #optimization for 1 week (7*24=168 hours)
+Tmaxmax = Tmax + 24 #anneau de garde
 duration_t = 1
 
 #Data loading
@@ -230,7 +230,7 @@ function run_model()
         @variable(model, P_in_max_avail[a in union(elec_in,gas_in), t in 1:Tmaxmax] ≥ 0)
         @variable(model, P_out_max_avail[a in union(elec_out,gas_out), t in 1:Tmaxmax] ≥ 0)
 
-        # #stock variables
+        #Stock variables
         @variable(model, E[a in stock, t in 1:Tmaxmax] ≥ 0)
         @variable(model, isCharging[a in stock, t in 1:Tmaxmax], Bin)
 
@@ -390,7 +390,6 @@ function run_model()
             ],
             on[a,t] == 1
         )
-        @show max(dmin["Methaniseur"] - h_on["Methaniseur"], 0)
 
         @constraint(model,
             min_down_init[a in disp, t in 1:Tmaxmax;
@@ -400,12 +399,12 @@ function run_model()
             ],
             on[a,t] == 0
         )
-        @show max(dmin["Methaniseur"] - h_off["Methaniseur"], 0)
 
-        #conv constraints
-        @constraint(model, conv_eff[a in conv, t in 1:Tmaxmax], P_out[a,t] == eff[a] * P_in[a,t])
+        # Conv constraints
+        # Do not add whole conv set because storage assets be in conv and it will interfere with stock management
+        @constraint(model, conv_eff[a in union(conv_ge, conv_eh2, conv_gh2), t in 1:Tmaxmax], P_out[a,t] == eff[a] * P_in[a,t])
 
-        #Stock constraints
+        # Stock constraints
         E_max_avail = Dict{Tuple{String,Int}, Float64}()
         E_min_avail = Dict{Tuple{String,Int}, Float64}()
         P_in_max_avail_stock = Dict{Tuple{String,Int}, Float64}()
@@ -425,9 +424,9 @@ function run_model()
         @constraint(model, stock_energy[a in stock, t in 2:Tmaxmax], E[a,t] == E[a,t-1] + (eff[a]*P_in[a,t] - P_out[a,t]) * duration_t
         )
 
-        # # Charge boundaries
-        # @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] <= E_max_avail[(a,t)])
-        # @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] >= E_min_avail[(a,t)])
+        # Charge boundaries
+        @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] <= E_max_avail[(a,t)])
+        @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] >= E_min_avail[(a,t)])
 
         #Discharge init and max
         @constraint(model, discharge_max_stock_init[a in stock], P_out[a,1] * duration_t <= E_init[a])
@@ -465,14 +464,14 @@ function run_model()
 
         println("\n\n\n")
 
-        on_serie = [value(on["Methaniseur", t]) for t in 1:Tmaxmax]
-        @show on_serie
-        pout_max_serie = [value(P_out_max_avail["Methaniseur", t]) for t in 1:Tmaxmax]
-        @show pout_max_serie
 
         outfile = "results.xlsx"
 
         XLSX.openxlsx(outfile, mode="w") do xf
+            # # Delete default Excel sheet
+            # if "Sheet1" in XLSX.sheetnames(xf)
+            #     XLSX.delete!(xf, "Sheet1")
+            # end
 
             ############################
             # SHEET 1 : P_out
