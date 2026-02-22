@@ -5,12 +5,13 @@ using HiGHS
 #package to read excel files
 using XLSX
 
+println("Loading data ...")
 Tmax = 168 #optimization for 1 week (7*24=168 hours)
 Tmaxmax = Tmax + 24 #anneau de garde
 duration_t = 1
 
 #Data loading
-file = "inputs_test.xlsx"
+file = "inputs_eminmax.xlsx"
 
 function read_col(file, sheet, col, default, T, n)
     data = vec(XLSX.readdata(file, sheet, "$(col)2:$(col)10000"))
@@ -22,6 +23,21 @@ function read_col_dict(file, sheet, col, default, T, n, name)
     data = T.(coalesce.(data, default))[1:n]
     dict = Dict(name[i] => data[i] for i in eachindex(name))
     return dict
+end
+
+function read_timeseries(file, sheet, col, startrow, nrows, default, T)
+    range = "$(col)$(startrow):$(col)$(startrow+nrows-1)"
+    data = XLSX.readdata(file, sheet, range)
+    return T.(coalesce.(vec(data), default))
+end
+
+function col_letter(i::Int)
+    s = ""
+    while i > 0
+        i, r = divrem(i-1, 26)
+        s = string(Char('A' + r), s)
+    end
+    return s
 end
 
 #LOAD ASSETS DATA
@@ -183,30 +199,77 @@ function run_model()
         # LOAD CONSUMTION AND PRODUCTION TIMESERIES
         sheet2 = "TIMESERIES"
 
+
+        
         #data for electric load
-        load_elec = XLSX.readdata(file, sheet2, "C$(2+Tmax*n):C$(1+Tmax*n+Tmaxmax)")
-        load_elec = Float64.(coalesce.(vec(load_elec),0.0))
-        load_gas_north = XLSX.readdata(file, sheet2, "D$(2+Tmax*n):D$(1+Tmax*n+Tmaxmax)")
-        load_gas_north = Float64.(coalesce.(vec(load_gas_north),0.0))
-        load_gas_south = XLSX.readdata(file, sheet2, "E$(2+Tmax*n):E$(1+Tmax*n+Tmaxmax)")
-        load_gas_south = Float64.(coalesce.(vec(load_gas_south),0.0))
-        load_h2_north = XLSX.readdata(file, sheet2, "F$(2+Tmax*n):F$(1+Tmax*n+Tmaxmax)")
-        load_h2_north = Float64.(coalesce.(vec(load_h2_north),0.0))
+        load_elec = read_timeseries(file, sheet2, "C", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_gas_n = read_timeseries(file, sheet2, "D", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_gas_s = read_timeseries(file, sheet2, "E", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_h2_n = read_timeseries(file, sheet2, "F", 2+Tmax*n, Tmaxmax, 0.0, Float64)
 
         #data for inter generation
-        solar = XLSX.readdata(file, sheet2, "G$(2+Tmax*n):G$(1+Tmax*n+Tmaxmax)")
-        wind_on = XLSX.readdata(file, sheet2, "I$(2+Tmax*n):I$(1+Tmax*n+Tmaxmax)")
-        wind_off = XLSX.readdata(file, sheet2, "J$(2+Tmax*n):J$(1+Tmax*n+Tmaxmax)")
-        hydroFO_fatal = XLSX.readdata(file, sheet2, "M$(2+Tmax*n):M$(1+Tmax*n+Tmaxmax)")
-        hydroLake_fatal = XLSX.readdata(file, sheet2, "N$(2+Tmax*n):N$(1+Tmax*n+Tmaxmax)")
-        thermal_fatal = XLSX.readdata(file, sheet2, "P$(2+Tmax*n):P$(1+Tmax*n+Tmaxmax)")
-        #To get rid of potential missing values
-        solar           = Float64.(coalesce.(vec(solar), 0.0))
-        wind_on         = Float64.(coalesce.(vec(wind_on), 0.0))
-        wind_off        = Float64.(coalesce.(vec(wind_off), 0.0))
-        hydroLake_fatal = Float64.(coalesce.(vec(hydroLake_fatal), 0.0))
-        hydroFO_fatal   = Float64.(coalesce.(vec(hydroFO_fatal), 0.0))
-        thermal_fatal   = Float64.(coalesce.(vec(thermal_fatal), 0.0))
+        solar = read_timeseries(file, sheet2, "G", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        wind_on = read_timeseries(file, sheet2, "I", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        wind_off = read_timeseries(file, sheet2, "J", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        hydroFO_fatal = read_timeseries(file, sheet2, "M", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        hydroLake_fatal = read_timeseries(file, sheet2, "N", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        thermal_fatal = read_timeseries(file, sheet2, "P", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+
+        #LOAD ENERGY STORAGE AVAILABILITY DATA
+        sheet4 = "E_AVAIL"
+
+        emin_cols = Dict{String, String}()
+        emax_cols = Dict{String, String}()
+        headers = vec(XLSX.readdata(file, sheet4, "A1:ZZ1"))
+
+        for (i, h) in enumerate(headers)
+            if !ismissing(h)
+                h = String(h)
+
+                if startswith(h, "EMIN_")
+                    asset = replace(h, "EMIN_" => "")
+                    emin_cols[asset] = col_letter(i)
+
+                elseif startswith(h, "EMAX_")
+                    asset = replace(h, "EMAX_" => "")
+                    emax_cols[asset] = col_letter(i)
+                end
+            end
+        end
+
+        E_min_avail = Dict{Tuple{String,Int}, Float64}()
+        E_max_avail = Dict{Tuple{String,Int}, Float64}()
+
+        for s in stock
+            emin_data = read_timeseries(file, sheet4, emin_cols[s], 2+Tmax*n, Tmaxmax, 0.0, Float64)
+            emax_data = read_timeseries(file, sheet4, emax_cols[s], 2+Tmax*n, Tmaxmax, 0.0, Float64)
+            for t in 1:Tmaxmax
+                E_min_avail[(s, t)] = emin_data[t]
+                E_max_avail[(s, t)] = emax_data[t]
+            end
+        end
+
+        P_in_max_avail_stock = Dict{Tuple{String,Int}, Float64}()
+        P_out_max_avail_stock = Dict{Tuple{String,Int}, Float64}()
+
+        for a in stock, t in 1:Tmaxmax
+            P_in_max_avail_stock[(a,t)]  = Pout_max[a]
+            P_out_max_avail_stock[(a,t)] = Pout_max[a]
+        end
+
+        #Availability
+        P_out_max_avail = Dict{Tuple{String,Int}, Float64}()
+        P_in_max_avail  = Dict{Tuple{String,Int}, Float64}()
+
+        #To avoid quadratic constraints
+        for a in union(ASSETS, INTERCONNEXIONS), t in 1:Tmaxmax
+            if a in union(elec_out, gas_out, h2_out)
+                P_out_max_avail[(a,t)] = Pout_max[a] * Avail[a][t]
+            end
+            # if a in union(elec_in,gas_in)
+            #     P_in_max_avail_const[(a,t)] = Pin_max[a] * Avail[a][t]
+            # end
+        end
 
         #############################
         #create the optimization model
@@ -226,19 +289,39 @@ function run_model()
         @variable(model, up[a in disp, t in 1:Tmaxmax], Bin)
         @variable(model, down[a in disp, t in 1:Tmaxmax], Bin)
 
-        #Available power
-        @variable(model, P_in_max_avail[a in union(elec_in,gas_in), t in 1:Tmaxmax] ≥ 0)
-        @variable(model, P_out_max_avail[a in union(elec_out,gas_out), t in 1:Tmaxmax] ≥ 0)
+        # #Available power
+        # @variable(model, P_in_max_avail[a in union(elec_in,gas_in), t in 1:Tmaxmax] ≥ 0)
+        # @variable(model, P_out_max_avail[a in union(elec_out,gas_out), t in 1:Tmaxmax] ≥ 0)
 
         #Stock variables
         @variable(model, E[a in stock, t in 1:Tmaxmax] ≥ 0)
         @variable(model, isCharging[a in stock, t in 1:Tmaxmax], Bin)
 
+        #unsupplied energy variables
+        @variable(model, Puns_elec[1:Tmaxmax] >= 0)
+        @variable(model, Puns_gas_n[1:Tmaxmax] >= 0)
+        @variable(model, Puns_gas_s[1:Tmaxmax] >= 0)
+        @variable(model, Puns_h2_n[1:Tmaxmax] >= 0)
+        @variable(model, Puns_h2_s[1:Tmaxmax] >= 0)
+        #in excess energy variables
+        @variable(model, Pexc_elec[1:Tmaxmax] >= 0)
+        @variable(model, Pexc_gas_n[1:Tmaxmax] >= 0)
+        @variable(model, Pexc_gas_s[1:Tmaxmax] >= 0)
+        @variable(model, Pexc_h2_n[1:Tmaxmax] >= 0)
+        @variable(model, Pexc_h2_s[1:Tmaxmax] >= 0)
+        
+        cuns = 5000 #cost of unsupplied energy €/MWh
+        cexc = 0 #cost of in excess energy €/MWh
+
         #############################
         #define the constraints
         #############################
         #objective function
-        @objective(model, Min, sum(P_out[a,t] * price[a] for a in ASSETS, t in 1:Tmaxmax))
+        @objective(model, Min,
+            sum(P_out[a,t] * price[a] for a in ASSETS, t in 1:Tmaxmax)
+            + sum(Puns_elec[t] + Puns_gas_n[t] + Puns_gas_s[t] + Puns_h2_n[t] + Puns_h2_s[t] for t in 1:Tmaxmax) * cuns
+            + sum(Pexc_elec[t] + Pexc_gas_n[t] + Pexc_gas_s[t] + Pexc_h2_n[t] + Pexc_h2_s[t] for t in 1:Tmaxmax) * cexc
+        )
 
         #Inter prod
         @constraint(model, [a in solar_assets, t in 1:Tmaxmax], P_out[a,t] == solar[t])
@@ -254,9 +337,12 @@ function run_model()
             sum(P_out[a,t] for a in intersect(elec_out,inter))
             + sum(P_out[a,t] for a in intersect(elec_out,disp))
             + sum(P_out[a,t] for a in intersect(elec_out,stock))
+            + Puns_elec[t]
             == load_elec[t] +
             sum(P_in[a,t] for a in intersect(elec_in,stock))
-            + sum(P_in[a,t] for a in intersect(elec_in,disp)))
+            + sum(P_in[a,t] for a in intersect(elec_in,disp))
+            + Pexc_elec[t]
+            )
         end
 
         #EOD gas north
@@ -266,10 +352,13 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),disp))
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),stock))
             + sum(P_out[ic, t] for ic in intersect(INTERCONNEXIONS, gas_out, north))
-            == load_gas_north[t]
+            + Puns_gas_n[t]
+            == load_gas_n[t]
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),stock))
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),disp))
-            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, north)))
+            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, north))
+            + Pexc_gas_n[t]
+            )
         end
 
         #EOD gas south
@@ -279,11 +368,14 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),disp))
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),stock))
             + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, gas_out, south))
-            == load_gas_south[t]
+            + Puns_gas_s[t]
+            == load_gas_s[t]
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),stock))
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),disp))
-            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, south)))
-            end
+            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, south))
+            + Pexc_gas_s[t]
+            )
+        end
 
         #EOD h2 north
         if !isempty(intersect(union(h2_out,h2_in),north))
@@ -292,10 +384,13 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),disp))
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),stock))
             + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out, north))
-            == load_h2_north[t]
+            + Puns_h2_n[t]
+            == load_h2_n[t]
             + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),stock))
             + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),disp))
-            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, north)))
+            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, north))
+            + Pexc_h2_n[t]
+            )
         end
 
         #EOD h2 south
@@ -305,24 +400,13 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),disp))
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),stock))
             + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out, south))
+            + Puns_h2_s[t]
             == sum(P_in[a,t] for a in intersect(intersect(h2_in,south),stock))
             + sum(P_in[a,t] for a in intersect(intersect(h2_in,south),disp))
-            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, south)))
-            end
-
-            #Availability
-            P_out_max_avail = Dict{Tuple{String,Int}, Float64}()
-            P_in_max_avail  = Dict{Tuple{String,Int}, Float64}()
-
-            #To avoid quadratic constraints
-        for a in union(ASSETS, INTERCONNEXIONS), t in 1:Tmaxmax
-            if a in union(elec_out, gas_out, h2_out)
-                    P_out_max_avail[(a,t)] = Pout_max[a] * Avail[a][t]
-                end
-                # if a in union(elec_in,gas_in)
-                #     P_in_max_avail_const[(a,t)] = Pin_max[a] * Avail[a][t]
-                # end
-            end
+            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, south))
+            + Pexc_h2_s[t]
+            )
+        end
 
         #Pmin/Pmax disp
         @constraint(model, p_max_out_disp[a in intersect(disp,union(elec_out, gas_out, h2_out)), t in 1:Tmaxmax], P_out[a,t] ≤ P_out_max_avail[(a,t)] * on[a,t])
@@ -405,18 +489,6 @@ function run_model()
         @constraint(model, conv_eff[a in union(conv_ge, conv_eh2, conv_gh2), t in 1:Tmaxmax], P_out[a,t] == eff[a] * P_in[a,t])
 
         # Stock constraints
-        E_max_avail = Dict{Tuple{String,Int}, Float64}()
-        E_min_avail = Dict{Tuple{String,Int}, Float64}()
-        P_in_max_avail_stock = Dict{Tuple{String,Int}, Float64}()
-        P_out_max_avail_stock = Dict{Tuple{String,Int}, Float64}()
-
-        for a in stock, t in 1:Tmaxmax
-            P_in_max_avail_stock[(a,t)]  = Pout_max[a]
-            P_out_max_avail_stock[(a,t)] = Pout_max[a]
-            E_max_avail[(a,t)] = E_max[a] * Avail[a][t]
-            E_min_avail[(a,t)] = 0
-        end
-
         # Energy stock init
         @constraint(model, energy_init[a in stock], E[a,1] == E_init[a] + (eff[a]*P_in[a,1] - P_out[a,1]) * duration_t)
 
