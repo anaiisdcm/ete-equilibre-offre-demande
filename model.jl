@@ -4,6 +4,10 @@ using JuMP
 using HiGHS
 #package to read excel files
 using XLSX
+#to 
+using MathOptInterface
+
+const MOI = MathOptInterface
 
 println("Loading data ...")
 Tmax = 168 #optimization for 1 week (7*24=168 hours)
@@ -102,11 +106,11 @@ south = Set(a for a in ASSETS if region[a] == "s")
 disp  = Set(a for a in ASSETS if family[a] == "disp")
 inter = Set(a for a in ASSETS if family[a] == "inter")
 solar_assets = Set(a for a in inter if occursin("PV", a))
-wind_on_assets = Set(a for a in inter if a == "Eolien terrestre 1")
-wind_off_assets = Set(a for a in inter if a == "Eolien offshore 1")
-hydroFO_assets = Set(a for a in inter if a == "Hydro (fil de l'eau) 1")
-hydroLake_assets = Set(a for a in inter if a == "Hydro lac 1")
-thermal_fatal_assets = Set(a for a in inter if a == "Déchet 1" || a == "Biomasse 1")
+wind_on_assets = Set(a for a in inter if occursin("onshore", a))
+wind_off_assets = Set(a for a in inter if occursin("offshore", a))
+hydroFO_assets = Set(a for a in inter if occursin("Hydro_FO", a))
+hydroLake_assets = Set(a for a in inter if occursin("Hydro_lake", a))
+thermal_fatal_assets = Set(a for a in inter if occursin("Waste", a) || occursin("Biomass", a))
 stock = Set(a for a in ASSETS if family[a] == "stock")
 
 #assets availability (100% du temps pour le moment)
@@ -266,7 +270,7 @@ function run_model()
             if a in union(elec_out, gas_out, h2_out)
                 P_out_max_avail[(a,t)] = Pout_max[a] * Avail[a][t]
             end
-            # if a in union(elec_in,gas_in)
+            # if a in union(elec_in,gas_in,h2_in)
             #     P_in_max_avail_const[(a,t)] = Pin_max[a] * Avail[a][t]
             # end
         end
@@ -290,12 +294,14 @@ function run_model()
         @variable(model, down[a in disp, t in 1:Tmaxmax], Bin)
 
         # #Available power
-        # @variable(model, P_in_max_avail[a in union(elec_in,gas_in), t in 1:Tmaxmax] ≥ 0)
-        # @variable(model, P_out_max_avail[a in union(elec_out,gas_out), t in 1:Tmaxmax] ≥ 0)
+        # @variable(model, P_in_max_avail[a in union(elec_in, gas_in, h2_in), t in 1:Tmaxmax] ≥ 0)
+        # @variable(model, P_out_max_avail[a in union(elec_out, gas_out, h2_out), t in 1:Tmaxmax] ≥ 0)
 
         #Stock variables
         @variable(model, E[a in stock, t in 1:Tmaxmax] ≥ 0)
         @variable(model, isCharging[a in stock, t in 1:Tmaxmax], Bin)
+        @variable(model, slack_Emin[a in stock, t in 1:Tmaxmax] >= 0)
+        @variable(model, slack_Emax[a in stock, t in 1:Tmaxmax] >= 0)
 
         #unsupplied energy variables
         @variable(model, Puns_elec[1:Tmaxmax] >= 0)
@@ -310,17 +316,25 @@ function run_model()
         @variable(model, Pexc_h2_n[1:Tmaxmax] >= 0)
         @variable(model, Pexc_h2_s[1:Tmaxmax] >= 0)
         
-        cuns = 5000 #cost of unsupplied energy €/MWh
-        cexc = 0 #cost of in excess energy €/MWh
+        # Cost of unsupplied energy €/MWh
+        cuns = 5000
+        # Cost of in excess energy €/MWh
+        cexc = 0.001
+        # Cost of having low energy storage €/MWh
+        cband_min = 500
+        # Cost of having high energy storage €/MWh
+        cband_max = 500
 
         #############################
         #define the constraints
         #############################
         #objective function
         @objective(model, Min,
-            sum(P_out[a,t] * price[a] for a in ASSETS, t in 1:Tmaxmax)
-            + sum(Puns_elec[t] + Puns_gas_n[t] + Puns_gas_s[t] + Puns_h2_n[t] + Puns_h2_s[t] for t in 1:Tmaxmax) * cuns
-            + sum(Pexc_elec[t] + Pexc_gas_n[t] + Pexc_gas_s[t] + Pexc_h2_n[t] + Pexc_h2_s[t] for t in 1:Tmaxmax) * cexc
+            sum(price[a] * P_out[a,t] for a in ASSETS, t in 1:Tmaxmax)
+            + cuns * sum(Puns_elec[t] + Puns_gas_n[t] + Puns_gas_s[t] + Puns_h2_n[t] + Puns_h2_s[t] for t in 1:Tmaxmax)
+            + cexc * sum(Pexc_elec[t] + Pexc_gas_n[t] + Pexc_gas_s[t] + Pexc_h2_n[t] + Pexc_h2_s[t] for t in 1:Tmaxmax)
+            + cband_min * sum(slack_Emin[a,t] for a in stock, t in 1:Tmaxmax)
+            + cband_max * sum(slack_Emax[a,t] for a in stock, t in 1:Tmaxmax)
         )
 
         #Inter prod
@@ -496,9 +510,22 @@ function run_model()
         @constraint(model, stock_energy[a in stock, t in 2:Tmaxmax], E[a,t] == E[a,t-1] + (eff[a]*P_in[a,t] - P_out[a,t]) * duration_t
         )
 
-        # Charge boundaries
-        @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] <= E_max_avail[(a,t)])
-        @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] >= E_min_avail[(a,t)])
+        # # Charge boundaries
+        # @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] <= E_max_avail[(a,t)])
+        # @constraint(model, [a in stock, t in 1:Tmaxmax], E[a,t] >= E_min_avail[(a,t)])
+
+        # Soft band constraints
+        @constraint(model, stock_soft_band_min[a in stock, t in 1:Tmaxmax],
+            E[a,t] + slack_Emin[a,t] >= E_min_avail[(a,t)]
+        )
+
+        @constraint(model, stock_soft_band_max[a in stock, t in 1:Tmaxmax],
+            E[a,t] - slack_Emax[a,t] <= E_max_avail[(a,t)]
+        )
+
+        # Physical band constraints
+        @constraint(model, stock_phys_band_min[a in stock, t in 1:Tmaxmax], E[a,t] >= 0)
+        @constraint(model, stock_phys_band_max[a in stock, t in 1:Tmaxmax], E[a,t] <= E_max[a])
 
         #Discharge init and max
         @constraint(model, discharge_max_stock_init[a in stock], P_out[a,1] * duration_t <= E_init[a])
@@ -529,6 +556,19 @@ function run_model()
         #solve model
         set_optimizer_attribute(model, "mip_rel_gap", 0.005)
         optimize!(model)
+
+        
+        compute_conflict!(model)
+
+        for (F,S) in list_of_constraint_types(model)
+            for con in all_constraints(model, F, S)
+                status = MOI.get(model, MOI.ConstraintConflictStatus(), con)
+                if status == MOI.IN_CONFLICT
+                    println("Constraint in conflict: ", con)
+                end
+            end
+        end
+
         #------------------------------
         #Results
         @show termination_status(model)
@@ -536,6 +576,8 @@ function run_model()
 
         println("\n\n\n")
 
+        # @show [value(solar[t]) for t in 1:Tmaxmax]
+        # @show [value(P_out["PV",t]) for t in 1:Tmaxmax]
 
         outfile = "results.xlsx"
 
@@ -635,7 +677,81 @@ function run_model()
                     sheet[j+1, 5] = 0.0
                 end
             end
+                    
+            ############################
+            # SHEET 5 : COSTS DETAIL
+            ############################
+            sheet = XLSX.addsheet!(xf, "COSTS")
 
+            # --- Headers ---
+            sheet["A1"] = "Time"
+
+            # colonnes assets
+            assets_list = collect(ASSETS)
+            for (j,a) in enumerate(assets_list)
+                sheet[1, j+1] = string(a)
+            end
+
+            col_uns   = length(assets_list) + 2
+            col_exc   = col_uns + 1
+            col_bmin  = col_exc + 1
+            col_bmax  = col_bmin + 1
+            col_total = col_bmax + 1
+
+            sheet[1, col_uns]   = "UNS"
+            sheet[1, col_exc]   = "EXC"
+            sheet[1, col_bmin]  = "BAND_MIN"
+            sheet[1, col_bmax]  = "BAND_MAX"
+            sheet[1, col_total] = "TOTAL"
+
+            # --- Values ---
+            for t in 1:Tmaxmax
+                sheet[t+1, 1] = t
+
+                total = 0.0
+
+                # ASSET COST
+                for (j,a) in enumerate(assets_list)
+                    cost = price[a] * value(P_out[a,t])
+                    sheet[t+1, j+1] = cost
+                    total += cost
+                end
+
+                # UNSUFFICIENCY COST
+                uns = cuns * (
+                    value(Puns_elec[t]) +
+                    value(Puns_gas_n[t]) +
+                    value(Puns_gas_s[t]) +
+                    value(Puns_h2_n[t]) +
+                    value(Puns_h2_s[t])
+                )
+                sheet[t+1, col_uns] = uns
+                total += uns
+
+                # EXCESS COST
+                exc = cexc * (
+                    value(Pexc_elec[t]) +
+                    value(Pexc_gas_n[t]) +
+                    value(Pexc_gas_s[t]) +
+                    value(Pexc_h2_n[t]) +
+                    value(Pexc_h2_s[t])
+                )
+                sheet[t+1, col_exc] = exc
+                total += exc
+
+                # MIN BAND
+                bmin = cband_min * sum(value(slack_Emin[a,t]) for a in stock)
+                sheet[t+1, col_bmin] = bmin
+                total += bmin
+
+                # MAX BAND
+                bmax = cband_max * sum(value(slack_Emax[a,t]) for a in stock)
+                sheet[t+1, col_bmax] = bmax
+                total += bmax
+
+                # TOTAL
+                sheet[t+1, col_total] = total
+            end
         end
 
         cp("results.xlsx", "results_semaine_$(n).xlsx"; force=true) #sauvegarde le fichier résultats de la semaine n et laisse le fichier "results" en fichier glissant
