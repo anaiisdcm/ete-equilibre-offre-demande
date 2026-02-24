@@ -11,27 +11,27 @@ const MOI = MathOptInterface
 
 println("Loading data ...")
 Tmax = 168 #optimization for 1 week (7*24=168 hours)
-Tmaxmax = Tmax + 24 #anneau de garde
+Tmaxmax = Tmax + 168 #anneau de garde
 duration_t = 1
 
 #Data loading
-file = "inputs_eminmax.xlsx"
+input_file = "inputs.xlsx"
 
-function read_col(file, sheet, col, default, T, n)
-    data = vec(XLSX.readdata(file, sheet, "$(col)2:$(col)10000"))
+function read_col(file_path, sheet, col, default, T, n)
+    data = vec(XLSX.readdata(file_path, sheet, "$(col)2:$(col)10000"))
     return T.(coalesce.(data, default))[1:n]
 end
 
-function read_col_dict(file, sheet, col, default, T, n, name)
-    data = vec(XLSX.readdata(file, sheet, "$(col)2:$(col)10000"))
+function read_col_dict(file_path, sheet, col, default, T, n, name)
+    data = vec(XLSX.readdata(file_path, sheet, "$(col)2:$(col)10000"))
     data = T.(coalesce.(data, default))[1:n]
     dict = Dict(name[i] => data[i] for i in eachindex(name))
     return dict
 end
 
-function read_timeseries(file, sheet, col, startrow, nrows, default, T)
+function read_timeseries(file_path, sheet, col, startrow, nrows, default, T)
     range = "$(col)$(startrow):$(col)$(startrow+nrows-1)"
-    data = XLSX.readdata(file, sheet, range)
+    data = XLSX.readdata(file_path, sheet, range)
     return T.(coalesce.(vec(data), default))
 end
 
@@ -47,25 +47,25 @@ end
 #LOAD ASSETS DATA
 sheet1 = "ASSETS"
 
-raw_names = vec(XLSX.readdata(file, sheet1, "A2:A10000"))
+raw_names = vec(XLSX.readdata(input_file, sheet1, "A2:A10000"))
 n_assets = count(!ismissing, raw_names)
 
-name = read_col(file, sheet1, "A", "", String, n_assets)
-energy_in = read_col_dict(file, sheet1, "B", "", String, n_assets, name)
-energy_out = read_col_dict(file, sheet1, "C", "", String, n_assets, name)
-region = read_col_dict(file, sheet1, "D", "n", String, n_assets, name)
-avail = read_col_dict(file, sheet1, "E", 1.0, Float64, n_assets, name)
-Pout_max = read_col_dict(file, sheet1, "F", 0.0, Float64, n_assets, name)
-Pout_min = read_col_dict(file, sheet1, "G", 0.0, Float64, n_assets, name)
-dmin =  read_col_dict(file, sheet1, "H", 0, Int, n_assets, name)
-on_init =  read_col_dict(file, sheet1, "I", 0, Int, n_assets, name)
-h_on =  read_col_dict(file, sheet1, "J", 0, Int, n_assets, name)
-h_off =  read_col_dict(file, sheet1, "K", 0, Int, n_assets, name)
-eff = read_col_dict(file, sheet1, "L", 1.0, Float64, n_assets, name)
-E_max = read_col_dict(file, sheet1, "M", 0.0, Float64, n_assets, name)
-E_init = read_col_dict(file, sheet1, "N", 0.0, Float64, n_assets, name)
-price = read_col_dict(file, sheet1, "O", 0.0, Float64, n_assets, name)
-family = read_col_dict(file, sheet1, "P", "", String, n_assets, name)
+name = read_col(input_file, sheet1, "A", "", String, n_assets)
+energy_in = read_col_dict(input_file, sheet1, "B", "", String, n_assets, name)
+energy_out = read_col_dict(input_file, sheet1, "C", "", String, n_assets, name)
+region = read_col_dict(input_file, sheet1, "D", "n", String, n_assets, name)
+avail = read_col_dict(input_file, sheet1, "E", 1.0, Float64, n_assets, name)
+Pout_max = read_col_dict(input_file, sheet1, "F", 0.0, Float64, n_assets, name)
+Pout_min = read_col_dict(input_file, sheet1, "G", 0.0, Float64, n_assets, name)
+dmin =  read_col_dict(input_file, sheet1, "H", 0, Int, n_assets, name)
+on_init =  read_col_dict(input_file, sheet1, "I", 0, Int, n_assets, name)
+h_on =  read_col_dict(input_file, sheet1, "J", 0, Int, n_assets, name)
+h_off =  read_col_dict(input_file, sheet1, "K", 0, Int, n_assets, name)
+eff = read_col_dict(input_file, sheet1, "L", 1.0, Float64, n_assets, name)
+E_max = read_col_dict(input_file, sheet1, "M", 0.0, Float64, n_assets, name)
+E_init = read_col_dict(input_file, sheet1, "N", 0.0, Float64, n_assets, name)
+price = read_col_dict(input_file, sheet1, "O", 0.0, Float64, n_assets, name)
+family = read_col_dict(input_file, sheet1, "P", "", String, n_assets, name)
 
 #Building a set of assets
 ASSETS = Set(String.(vec(name)))
@@ -122,14 +122,14 @@ end
 #LOAD INTERCONNEXION DATA
 sheet3 = "INTERCONN"
 
-raw_names = vec(XLSX.readdata(file, sheet3, "A2:A10000"))
+raw_names = vec(XLSX.readdata(input_file, sheet3, "A2:A10000"))
 n_interconn = count(!ismissing, raw_names)
-name = read_col(file, sheet3, "A", "", String, n_interconn)
+name = read_col(input_file, sheet3, "A", "", String, n_interconn)
 
-interconn_pmax = read_col_dict(file, sheet3, "B", 0.0, Float64, n_interconn, name)
-interconn_avail = read_col_dict(file, sheet3, "C", 1.0, Float64, n_interconn, name)
-interconn_energy = read_col_dict(file, sheet3, "D", "", String, n_interconn, name)
-interconn_region_ref = read_col_dict(file, sheet3, "E", "n", String, n_interconn, name)
+interconn_pmax = read_col_dict(input_file, sheet3, "B", 0.0, Float64, n_interconn, name)
+interconn_avail = read_col_dict(input_file, sheet3, "C", 1.0, Float64, n_interconn, name)
+interconn_energy = read_col_dict(input_file, sheet3, "D", "", String, n_interconn, name)
+interconn_region_ref = read_col_dict(input_file, sheet3, "E", "n", String, n_interconn, name)
 
 INTERCONNEXIONS = Set(String.(vec(name)))
 for ic in INTERCONNEXIONS
@@ -195,9 +195,9 @@ function run_model()
     global h_on
     global h_off
     global E_init
-    global file
+    global input_file
 
-    for n in 0:1 #boucle sur les 52 semaines
+    for n in 0:50 #boucle sur les 52 semaines
         println("Optimizing week $n ...")
 
         # LOAD CONSUMTION AND PRODUCTION TIMESERIES
@@ -206,25 +206,25 @@ function run_model()
 
         
         #data for electric load
-        load_elec = read_timeseries(file, sheet2, "C", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        load_gas_n = read_timeseries(file, sheet2, "D", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        load_gas_s = read_timeseries(file, sheet2, "E", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        load_h2_n = read_timeseries(file, sheet2, "F", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_elec = read_timeseries(input_file, sheet2, "C", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_gas_n = read_timeseries(input_file, sheet2, "D", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_gas_s = read_timeseries(input_file, sheet2, "E", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        load_h2_n = read_timeseries(input_file, sheet2, "F", 2+Tmax*n, Tmaxmax, 0.0, Float64)
 
         #data for inter generation
-        solar = read_timeseries(file, sheet2, "G", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        wind_on = read_timeseries(file, sheet2, "I", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        wind_off = read_timeseries(file, sheet2, "J", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        hydroFO_fatal = read_timeseries(file, sheet2, "M", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        hydroLake_fatal = read_timeseries(file, sheet2, "N", 2+Tmax*n, Tmaxmax, 0.0, Float64)
-        thermal_fatal = read_timeseries(file, sheet2, "P", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        solar = read_timeseries(input_file, sheet2, "G", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        wind_on = read_timeseries(input_file, sheet2, "I", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        wind_off = read_timeseries(input_file, sheet2, "J", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        hydroFO_fatal = read_timeseries(input_file, sheet2, "M", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        hydroLake_fatal = read_timeseries(input_file, sheet2, "N", 2+Tmax*n, Tmaxmax, 0.0, Float64)
+        thermal_fatal = read_timeseries(input_file, sheet2, "P", 2+Tmax*n, Tmaxmax, 0.0, Float64)
 
         #LOAD ENERGY STORAGE AVAILABILITY DATA
         sheet4 = "E_AVAIL"
 
         emin_cols = Dict{String, String}()
         emax_cols = Dict{String, String}()
-        headers = vec(XLSX.readdata(file, sheet4, "A1:ZZ1"))
+        headers = vec(XLSX.readdata(input_file, sheet4, "A1:ZZ1"))
 
         for (i, h) in enumerate(headers)
             if !ismissing(h)
@@ -245,8 +245,8 @@ function run_model()
         E_max_avail = Dict{Tuple{String,Int}, Float64}()
 
         for s in stock
-            emin_data = read_timeseries(file, sheet4, emin_cols[s], 2+Tmax*n, Tmaxmax, 0.0, Float64)
-            emax_data = read_timeseries(file, sheet4, emax_cols[s], 2+Tmax*n, Tmaxmax, 0.0, Float64)
+            emin_data = read_timeseries(input_file, sheet4, emin_cols[s], 2+Tmax*n, Tmaxmax, 0.0, Float64)
+            emax_data = read_timeseries(input_file, sheet4, emax_cols[s], 2+Tmax*n, Tmaxmax, 0.0, Float64)
             for t in 1:Tmaxmax
                 E_min_avail[(s, t)] = emin_data[t]
                 E_max_avail[(s, t)] = emax_data[t]
@@ -442,14 +442,22 @@ function run_model()
         end
 
         if n > 0
-            file = "results_semaine_$(n-1).xlsx" #on ouvre les résultats de la semaine précédente pour récupérer l'état d'activité des actifs
+            state_file = "results_semaine_$(n-1).xlsx" #on ouvre les résultats de la semaine précédente pour récupérer l'état d'activité des actifs
             sheet4 = "ASSETS_STATE" #feuille allouée à l'état d'activité
 
-            name = read_col(file, sheet4, "A", "", String, n_assets)
-            on_init =  read_col_dict(file, sheet4, "B", 0, Int, n_assets, name)
-            h_on =  read_col_dict(file, sheet4, "C", 0, Int, n_assets, name)
-            h_off =  read_col_dict(file, sheet4, "D", 0, Int, n_assets, name)
-            E_init = read_col_dict(file, sheet4, "E", 0.0, Float64, n_assets, name)
+            name = read_col(state_file, sheet4, "A", "", String, n_assets)
+            on_init =  read_col_dict(state_file, sheet4, "B", 0, Int, n_assets, name)
+            h_on =  read_col_dict(state_file, sheet4, "C", 0, Int, n_assets, name)
+            h_off =  read_col_dict(state_file, sheet4, "D", 0, Int, n_assets, name)
+            E_init = read_col_dict(state_file, sheet4, "E", 0.0, Float64, n_assets, name)
+        end
+
+        for a in disp, t in 1:Tmaxmax
+            set_start_value(on[a,t], on_init[a])
+        end
+
+        for a in stock
+            set_start_value(E[a,1], E_init[a])
         end
 
         
@@ -553,24 +561,27 @@ function run_model()
                                         t in 1:Tmaxmax],
                                         P_out[imn,t] == P_in[exs,t])
 
-        #solve model
+
+        println("Nb vars = ", num_variables(model))
+        println("Nb constraints = ", num_constraints(model; count_variable_in_set_constraints = true))
+
+        # Solve model
         set_optimizer_attribute(model, "mip_rel_gap", 0.005)
         optimize!(model)
 
-        
-        compute_conflict!(model)
-
-        for (F,S) in list_of_constraint_types(model)
-            for con in all_constraints(model, F, S)
-                status = MOI.get(model, MOI.ConstraintConflictStatus(), con)
-                if status == MOI.IN_CONFLICT
-                    println("Constraint in conflict: ", con)
-                end
-            end
-        end
+        # # Uncomment only when infeasible
+        # compute_conflict!(model)
+        # for (F,S) in list_of_constraint_types(model)
+        #     for con in all_constraints(model, F, S)
+        #         status = MOI.get(model, MOI.ConstraintConflictStatus(), con)
+        #         if status == MOI.IN_CONFLICT
+        #             println("Constraint in conflict: ", con)
+        #         end
+        #     end
+        # end
 
         #------------------------------
-        #Results
+        # Results
         @show termination_status(model)
         @show objective_value(model)
 
