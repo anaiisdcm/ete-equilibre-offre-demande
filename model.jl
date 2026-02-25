@@ -11,7 +11,7 @@ const MOI = MathOptInterface
 
 println("Loading data ...")
 Tmax = 168 #optimization for 1 week (7*24=168 hours)
-Tmaxmax = Tmax + 168 #anneau de garde
+Tmaxmax = Tmax + 24 #anneau de garde
 duration_t = 1
 
 #Data loading
@@ -25,6 +25,11 @@ end
 function read_col_dict(file_path, sheet, col, default, T, n, name)
     data = vec(XLSX.readdata(file_path, sheet, "$(col)2:$(col)10000"))
     data = T.(coalesce.(data, default))[1:n]
+    if T == Int
+        data = round.(Int, data)
+    else
+        data = T.(data)
+    end
     dict = Dict(name[i] => data[i] for i in eachindex(name))
     return dict
 end
@@ -665,19 +670,19 @@ function run_model()
                 sheet[j+1, 1] = a
                 # Is asset on at the end of the optimized week ?
                 if a in disp
-                    sheet[j+1, 2] = value(on[a,Tmax])
+                    sheet[j+1, 2] = Int(round(value(on[a,Tmax])))
                 else
                     sheet[j+1, 2] = 0
                 end 
                 # How many hours the asset has been on at the end of the optimized week ?
                 if a in disp
-                    sheet[j+1, 3] = compute_h_on(a, Tmax, on)
+                    sheet[j+1, 3] = Int(round(compute_h_on(a, Tmax, on)))
                 else
                     sheet[j+1, 3] = 0
                 end
                 # How many hours the asset has been off at the end of the optimized week ?
                 if a in disp
-                    sheet[j+1, 4] = compute_h_off(a, Tmax, on)
+                    sheet[j+1, 4] = Int(round(compute_h_off(a, Tmax, on)))
                 else
                     sheet[j+1, 4] = 0
                 end
