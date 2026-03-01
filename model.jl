@@ -202,7 +202,7 @@ function run_model()
     global E_init
     global input_file
 
-    for n in 0:50 #boucle sur les 52 semaines
+    for n in 0:52 #boucle sur les 52 semaines
         println("Optimizing week $n ...")
 
         # LOAD CONSUMTION AND PRODUCTION TIMESERIES
