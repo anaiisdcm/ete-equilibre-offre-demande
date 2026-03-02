@@ -310,21 +310,17 @@ function run_model()
 
         #unsupplied energy variables
         @variable(model, Puns_elec[1:Tmaxmax] >= 0)
-        @variable(model, Puns_gas_n[1:Tmaxmax] >= 0)
-        @variable(model, Puns_gas_s[1:Tmaxmax] >= 0)
-        @variable(model, Puns_h2_n[1:Tmaxmax] >= 0)
-        @variable(model, Puns_h2_s[1:Tmaxmax] >= 0)
+        @variable(model, Puns_gas[1:Tmaxmax] >= 0)
+        @variable(model, Puns_h2[1:Tmaxmax] >= 0)
         #in excess energy variables
         @variable(model, Pexc_elec[1:Tmaxmax] >= 0)
-        @variable(model, Pexc_gas_n[1:Tmaxmax] >= 0)
-        @variable(model, Pexc_gas_s[1:Tmaxmax] >= 0)
-        @variable(model, Pexc_h2_n[1:Tmaxmax] >= 0)
-        @variable(model, Pexc_h2_s[1:Tmaxmax] >= 0)
+        @variable(model, Pexc_gas[1:Tmaxmax] >= 0)
+        @variable(model, Pexc_h2[1:Tmaxmax] >= 0)
         
         # Cost of unsupplied energy €/MWh
         cuns = 5000
         # Cost of in excess energy €/MWh
-        cexc = 0.001
+        cexc = 0.0001
         # Cost of having low energy storage €/MWh
         cband_min = 500
         # Cost of having high energy storage €/MWh
@@ -336,8 +332,8 @@ function run_model()
         #objective function
         @objective(model, Min,
             sum(price[a] * P_out[a,t] for a in ASSETS, t in 1:Tmaxmax)
-            + cuns * sum(Puns_elec[t] + Puns_gas_n[t] + Puns_gas_s[t] + Puns_h2_n[t] + Puns_h2_s[t] for t in 1:Tmaxmax)
-            + cexc * sum(Pexc_elec[t] + Pexc_gas_n[t] + Pexc_gas_s[t] + Pexc_h2_n[t] + Pexc_h2_s[t] for t in 1:Tmaxmax)
+            + cuns * sum(Puns_elec[t] + Puns_gas[t] + Puns_h2[t] for t in 1:Tmaxmax)
+            + cexc * sum(Pexc_elec[t] + Pexc_gas[t] + Pexc_h2[t] for t in 1:Tmaxmax)
             + cband_min * sum(slack_Emin[a,t] for a in stock, t in 1:Tmaxmax)
             + cband_max * sum(slack_Emax[a,t] for a in stock, t in 1:Tmaxmax)
         )
@@ -364,6 +360,22 @@ function run_model()
             )
         end
 
+        #EOD gas global
+        if !isempty(union(gas_out, gas_in))
+            @constraint(model, eod_gas_global[t in 1:Tmaxmax],
+            sum(P_out[a,t] for a in intersect(gas_out,inter))
+            + sum(P_out[a,t] for a in intersect(gas_out,disp))
+            + sum(P_out[a,t] for a in intersect(gas_out,stock))
+            + sum(P_out[ic, t] for ic in intersect(INTERCONNEXIONS, gas_out))
+            + Puns_gas[t]
+            == load_gas_n[t]
+            + sum(P_in[a,t] for a in intersect(gas_in,stock))
+            + sum(P_in[a,t] for a in intersect(gas_in,disp))
+            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in))
+            + Pexc_gas[t]
+            )
+        end
+
         #EOD gas north
         if !isempty(intersect(union(gas_out, gas_in),north))
             @constraint(model, eod_gas_north[t in 1:Tmaxmax],
@@ -371,12 +383,10 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),disp))
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,north),stock))
             + sum(P_out[ic, t] for ic in intersect(INTERCONNEXIONS, gas_out, north))
-            + Puns_gas_n[t]
             == load_gas_n[t]
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),stock))
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,north),disp))
             + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, north))
-            + Pexc_gas_n[t]
             )
         end
 
@@ -387,12 +397,26 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),disp))
             + sum(P_out[a,t] for a in intersect(intersect(gas_out,south),stock))
             + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, gas_out, south))
-            + Puns_gas_s[t]
             == load_gas_s[t]
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),stock))
             + sum(P_in[a,t] for a in intersect(intersect(gas_in,south),disp))
             + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, gas_in, south))
-            + Pexc_gas_s[t]
+            )
+        end
+
+        #EOD h2 global
+        if !isempty(union(h2_out,h2_in))
+            @constraint(model, eod_h2_global[t in 1:Tmaxmax],
+            sum(P_out[a,t] for a in intersect(h2_out,inter))
+            + sum(P_out[a,t] for a in intersect(h2_out,disp))
+            + sum(P_out[a,t] for a in intersect(h2_out,stock))
+            + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out))
+            + Puns_h2[t]
+            == load_h2_n[t]
+            + sum(P_in[a,t] for a in intersect(h2_in,stock))
+            + sum(P_in[a,t] for a in intersect(h2_in,disp))
+            + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in))
+            + Pexc_h2[t]
             )
         end
 
@@ -403,12 +427,10 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),disp))
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,north),stock))
             + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out, north))
-            + Puns_h2_n[t]
             == load_h2_n[t]
             + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),stock))
             + sum(P_in[a,t] for a in intersect(intersect(h2_in,north),disp))
             + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, north))
-            + Pexc_h2_n[t]
             )
         end
 
@@ -419,11 +441,9 @@ function run_model()
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),disp))
             + sum(P_out[a,t] for a in intersect(intersect(h2_out,south),stock))
             + sum(P_out[ic,t] for ic in intersect(INTERCONNEXIONS, h2_out, south))
-            + Puns_h2_s[t]
             == sum(P_in[a,t] for a in intersect(intersect(h2_in,south),stock))
             + sum(P_in[a,t] for a in intersect(intersect(h2_in,south),disp))
             + sum(P_in[ic,t] for ic in intersect(INTERCONNEXIONS, h2_in, south))
-            + Pexc_h2_s[t]
             )
         end
 
@@ -548,7 +568,7 @@ function run_model()
         @constraint(model, p_charge_avail[a in stock, t in 1:Tmaxmax], P_in[a,t] <= P_in_max_avail_stock[(a,t)] * isCharging[a,t])
         @constraint(model, p_discharge_avail[a in stock, t in 1:Tmaxmax], P_out[a,t] <= P_out_max_avail_stock[(a,t)] * (1 - isCharging[a,t]))
 
-        # Interconnexions
+        # Interconnexions /!\ NE FONCTIONNE QU'AVEC LES BONS INPUTS, RISQUE DE CREER DES CONTRAINTES DUPLIQUEES
         @constraint(model, interconn_gas1[exn in intersect(INTERCONNEXIONS, gas_in, north),
                                         ims in intersect(INTERCONNEXIONS, gas_out, south),
                                         t in 1:Tmaxmax],
@@ -592,8 +612,6 @@ function run_model()
 
         println("\n\n\n")
 
-        # @show [value(solar[t]) for t in 1:Tmaxmax]
-        # @show [value(P_out["PV",t]) for t in 1:Tmaxmax]
 
         outfile = "results.xlsx"
 
@@ -736,10 +754,8 @@ function run_model()
                 # UNSUFFICIENCY COST
                 uns = cuns * (
                     value(Puns_elec[t]) +
-                    value(Puns_gas_n[t]) +
-                    value(Puns_gas_s[t]) +
-                    value(Puns_h2_n[t]) +
-                    value(Puns_h2_s[t])
+                    value(Puns_gas[t]) +
+                    value(Puns_h2[t])
                 )
                 sheet[t+1, col_uns] = uns
                 total += uns
@@ -747,10 +763,8 @@ function run_model()
                 # EXCESS COST
                 exc = cexc * (
                     value(Pexc_elec[t]) +
-                    value(Pexc_gas_n[t]) +
-                    value(Pexc_gas_s[t]) +
-                    value(Pexc_h2_n[t]) +
-                    value(Pexc_h2_s[t])
+                    value(Pexc_gas[t]) +
+                    value(Pexc_h2[t])
                 )
                 sheet[t+1, col_exc] = exc
                 total += exc
